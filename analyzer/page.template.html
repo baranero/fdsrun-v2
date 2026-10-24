@@ -1,0 +1,208 @@
+<title>Analizator FDS</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one working column — file bar, summary strip, then advisor, checks, meshes, calibration. */
+:root {
+  --bg: #f4f6f8; --surface: #ffffff; --line: #d9dfe5; --fg: #17202a; --muted: #5b6875;
+  --accent: #c2410c; --accent-soft: #fdeee6; --bar: #3b5b7a; --bar-soft: #dbe5ee;
+  --ok: #17733f; --ok-soft: #e3f3e9; --warn: #9a5a00; --warn-soft: #fbf0d9; --err: #b42318; --err-soft: #fbe5e3;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --surface: #161e26; --line: #2a3541; --fg: #e6ebf0; --muted: #94a2b0;
+  --accent: #fb8a4c; --accent-soft: #3a2316; --bar: #7fa6c9; --bar-soft: #22303d;
+  --ok: #5ccf8a; --ok-soft: #14301f; --warn: #f0b350; --warn-soft: #33270f; --err: #ff8a7a; --err-soft: #3a1915; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #161e26; --line: #2a3541; --fg: #e6ebf0; --muted: #94a2b0;
+  --accent: #fb8a4c; --accent-soft: #3a2316; --bar: #7fa6c9; --bar-soft: #22303d;
+  --ok: #5ccf8a; --ok-soft: #14301f; --warn: #f0b350; --warn-soft: #33270f; --err: #ff8a7a; --err-soft: #3a1915; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 60px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 28px; }
+h1, h2 { font-family: var(--f-display); font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: .01em; }
+h1 { font-size: 30px; line-height: 1.1; }
+h2 { font-size: 20px; }
+.eyebrow { font: 500 12px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+p { margin: 0; max-width: 68ch; }
+.muted { color: var(--muted); }
+.mono, td.num, .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+header { display: grid; gap: 10px; }
+.filebar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.filebar label { font-weight: 500; }
+select, input[type=number] { font: 14px var(--f-body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; min-width: 0; max-width: 100%; }
+input[type=number] { width: 80px; font-family: var(--f-mono); }
+.btn { font: 500 14px var(--f-body); background: var(--fg); color: var(--bg); border: 0; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+.btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.drop { flex: 1 1 220px; min-width: 0; color: var(--muted); font-size: 13px; }
+.drop.over { color: var(--accent); }
+.note { font-size: 13px; color: var(--muted); }
+.strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.stat { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
+.stat .k { font-size: 12px; color: var(--muted); }
+.stat .v { font: 600 22px var(--f-display); font-variant-numeric: tabular-nums; }
+.stat .s { font: 12px var(--f-mono); color: var(--muted); }
+.stat.key .v { color: var(--accent); }
+section { display: grid; gap: 12px; }
+.table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font: 500 12px var(--f-body); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; }
+tr.pick td { background: var(--accent-soft); }
+.pill { display: inline-block; font: 600 11px var(--f-mono); letter-spacing: .04em; text-transform: uppercase; border-radius: 99px; padding: 2px 8px; }
+.pill.error { background: var(--err-soft); color: var(--err); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.info { background: var(--bar-soft); color: var(--bar); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.issues { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.issues li { display: grid; grid-template-columns: 74px 1fr; gap: 12px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.issues li span:last-child { min-width: 0; }
+.tips { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tips li { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; }
+.loads { display: grid; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.load { display: grid; grid-template-columns: 54px 1fr 92px; gap: 10px; align-items: center; font-size: 13px; }
+.load .track { background: var(--bar-soft); border-radius: 3px; height: 14px; position: relative; }
+.load .fill { background: var(--bar); height: 100%; border-radius: 3px; }
+.load.max .fill { background: var(--accent); }
+.load .lbl, .load .val { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.load .val { text-align: right; }
+.diff.up { color: var(--err); } .diff.down { color: var(--ok); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; }
+.cols > * { min-width: 0; }
+@media (prefers-reduced-motion: no-preference) { .fill { transition: width .4s ease; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">fdsrun.com · etap 1 · prototyp</div>
+    <h1>Analizator FDS</h1>
+    <p class="muted">Sprawdza plik .fds, doradza liczbę procesów i szacuje czas oraz koszt. Plik nie opuszcza przeglądarki.</p>
+  </header>
+
+  <div class="filebar">
+    <label for="sample">Plik:</label>
+    <select id="sample"></select>
+    <button class="btn" id="pick" type="button">Wgraj własny .fds</button>
+    <input type="file" id="file" accept=".fds,.txt" hidden>
+    <span class="drop" id="drop">albo upuść plik tutaj</span>
+    <label for="mult">Mnożnik ceny</label>
+    <input type="number" id="mult" min="1" max="10" step="0.1" value="2.0">
+  </div>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="cols">
+    <section>
+      <h2>Doradca procesów</h2>
+      <p class="note">FDS liczy jedną siatkę na jednym procesie MPI. Tempo całego modelu dyktuje najbardziej obciążony proces.</p>
+      <div class="table-scroll"><table id="opts"></table></div>
+      <ul class="tips" id="tips"></ul>
+    </section>
+    <section>
+      <h2>Obciążenie procesów</h2>
+      <p class="note">Liczba komórek na proces w obecnym ustawieniu MPI_PROCESS.</p>
+      <div class="loads" id="loads"></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>Sprawdzenie pliku</h2>
+    <ul class="issues" id="issues"></ul>
+  </section>
+
+  <section>
+    <h2>Siatki</h2>
+    <div class="table-scroll"><table id="meshes"></table></div>
+  </section>
+
+  <section>
+    <h2>Wycena kontra rzeczywistość</h2>
+    <p class="note">Twoje zlecenia ze starego portalu (wrzesień 2026). Czas rzeczywisty liczony od utworzenia do zakończenia zlecenia.</p>
+    <div class="table-scroll"><table id="calib"></table></div>
+    <p class="note" id="calibnote"></p>
+  </section>
+</div>
+
+<script>/*__ANALYZER__*/</script>
+<script>
+const SAMPLES = /*__SAMPLES__*/;
+const CALIB = /*__CALIB__*/;
+const A = window.FDSAnalyzer;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pln = v => v.toLocaleString('pl-PL', { maximumFractionDigits: 0 }) + ' zł';
+const eur = v => v.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const gb = b => b >= 1e9 ? (b / 1e9).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + ' GB' : Math.round(b / 1e6) + ' MB';
+const LEVEL = { error: 'błąd', warn: 'uwaga', info: 'info' };
+let current = null;
+
+Object.keys(SAMPLES).forEach(name => { const o = document.createElement('option'); o.value = name; o.textContent = name; $('sample').appendChild(o); });
+
+function run(name, text) {
+  const { model, issues } = A.analyze(text);
+  current = { name, model, issues };
+  render();
+}
+
+function render() {
+  const { model: m, issues } = current;
+  const cfg = { ...A.DEFAULTS, multiplier: Number($('mult').value) || 2 };
+  const est = A.estimate(m, cfg);
+  const adv = A.advise(m, cfg);
+  const pick = adv.cheapest && adv.fastest && adv.fastest.hours < adv.cheapest.hours * 0.7 ? adv.fastest : (adv.cheapest || adv.current);
+  const c = est.confidence;
+  const lo = pick ? pick.hours * c.low : 0, hi = pick ? pick.hours * c.high : 0;
+  const errs = issues.filter(i => i.level === 'error').length;
+
+  $('strip').innerHTML = [
+    ['Komórki', A.fmtInt(m.totalCells), `${m.meshes.length} siatek · Δx min ${m.dxMin.toFixed(3)} m`],
+    ['Symulacja', `${m.simTime} s`, `ok. ${A.fmtInt(est.steps)} kroków czasowych`],
+    ['Procesy w pliku', m.nProc, `wykorzystanie ${Math.round(m.balance * 100)}%`],
+    ['Czas liczenia', pick ? A.fmtHours(pick.hours) : '—', pick ? `${A.fmtHours(lo)} – ${A.fmtHours(hi)} · ${pick.server}` : '', true],
+    ['Koszt serwera', pick ? eur(pick.costEur) : '—', pick ? `≈ ${pln(pick.costEur * cfg.eurPln)}` : ''],
+    ['Cena dla klienta', pick ? pln(pick.pricePln) : '—', `mnożnik ×${cfg.multiplier}`, true],
+    ['Przekroje (slice)', gb(m.sliceBytes), `${m.counts.slcf} definicji SLCF`],
+    ['Plik', errs ? `${errs} błęd${errs === 1 ? 'y' : 'ów'}` : 'gotowy', `${issues.length} uwag łącznie`],
+  ].map(([k, v, s, key]) => `<div class="stat${key ? ' key' : ''}"><span class="k">${k}</span><span class="v">${esc(v)}</span><span class="s">${esc(s)}</span></div>`).join('');
+
+  $('opts').innerHTML = `<tr><th>Serwer</th><th class="num">Procesy</th><th class="num">Czas</th><th class="num">Koszt</th><th class="num">Cena</th></tr>` +
+    adv.best.map(o => `<tr class="${o === pick ? 'pick' : ''}"><td>${o.server} · ${o.vcpu} vCPU</td><td class="num">${o.procs}</td><td class="num">${A.fmtHours(o.hours)}</td><td class="num">${eur(o.costEur)}</td><td class="num">${pln(o.pricePln)}</td></tr>`).join('');
+  $('tips').innerHTML = [...adv.tips, c.note].map(t => `<li>${esc(t)}</li>`).join('');
+
+  const max = m.maxLoad || 1;
+  $('loads').innerHTML = m.procLoads.map((v, i) => `<div class="load${v === max ? ' max' : ''}"><span class="lbl">P${i}</span><span class="track"><span class="fill" style="width:${(v / max * 100).toFixed(1)}%;display:block"></span></span><span class="val">${A.fmtInt(v)}</span></div>`).join('');
+
+  $('issues').innerHTML = issues.length
+    ? issues.sort((a, b) => ['error', 'warn', 'info'].indexOf(a.level) - ['error', 'warn', 'info'].indexOf(b.level)).map(i => `<li><span><span class="pill ${i.level}">${LEVEL[i.level]}</span></span><span>${esc(i.msg)}</span></li>`).join('')
+    : `<li><span><span class="pill ok">ok</span></span><span>Nie znaleziono problemów.</span></li>`;
+
+  $('meshes').innerHTML = `<tr><th>Siatka</th><th class="num">IJK</th><th class="num">Komórka [m]</th><th class="num">Komórki</th><th class="num">Proces</th></tr>` +
+    m.meshes.map((s, i) => `<tr><td>${esc(s.id)}</td><td class="num">${s.ijk.join('×')}</td><td class="num">${[s.dx, s.dy, s.dz].map(v => v.toFixed(3)).join(' × ')}</td><td class="num">${A.fmtInt(s.cells)}</td><td class="num">${s.mpi ?? i}</td></tr>`).join('');
+}
+
+function renderCalib() {
+  const pct = (a, b) => { const d = Math.round((a / b - 1) * 100); return `<span class="diff ${Math.abs(d) <= 40 ? 'down' : 'up'}">${d > 0 ? '+' : ''}${d}%</span>`; };
+  $('calib').innerHTML = `<tr><th>Plik</th><th>Serwer</th><th class="num">Rzeczywisty</th><th class="num">Stary szacunek</th><th class="num">Błąd</th><th class="num">Nowy szacunek</th><th class="num">Błąd</th></tr>` +
+    CALIB.map(r => `<tr><td>${esc(r.file)}</td><td>${r.server}</td><td class="num">${A.fmtHours(r.real)}</td><td class="num">${A.fmtHours(r.old)}</td><td class="num">${pct(r.old, r.real)}</td><td class="num">${A.fmtHours(r.est)}</td><td class="num">${pct(r.est, r.real)}</td></tr>`).join('');
+  $('calibnote').textContent = 'Klatki schodowe: nowy szacunek mieści się w ±40%. Garaże z wentylacją strumieniową liczyły się 2–10 razy dłużej niż wynika z pliku, a trzy prawie identyczne modele trwały od 11 do 54 godzin. Takich różnic nie widać w pliku .fds, dlatego przed startem potrzebny jest krótki bieg testowy.';
+}
+
+$('sample').addEventListener('change', e => run(e.target.value, SAMPLES[e.target.value]));
+$('mult').addEventListener('input', () => current && render());
+$('pick').addEventListener('click', () => $('file').click());
+const readFile = f => { const r = new FileReader(); r.onload = () => { const o = document.createElement('option'); o.value = f.name; o.textContent = f.name; $('sample').prepend(o); $('sample').value = f.name; SAMPLES[f.name] = r.result; run(f.name, r.result); }; r.readAsText(f); };
+$('file').addEventListener('change', e => e.target.files[0] && readFile(e.target.files[0]));
+const drop = $('drop'), bar = drop.parentElement;
+bar.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+bar.addEventListener('dragleave', () => drop.classList.remove('over'));
+bar.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); e.dataTransfer.files[0] && readFile(e.dataTransfer.files[0]); });
+
+renderCalib();
+const firstName = 'klatkaC_lato_27.fds' in SAMPLES ? 'klatkaC_lato_27.fds' : Object.keys(SAMPLES)[0];
+$('sample').value = firstName;
+run(firstName, SAMPLES[firstName]);
+</script>
