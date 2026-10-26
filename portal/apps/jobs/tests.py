@@ -39,7 +39,7 @@ class JobFlowTests(TestCase):
         shutil.rmtree(TMP, ignore_errors=True)
 
     def setUp(self):
-        self.user = User.objects.create_user("inz@example.com", "haslo-bardzo-tajne")
+        self.user = User.objects.create_user("inz@example.com", "haslo-bardzo-tajne", email_confirmed=True)
         self.client.login(username="inz@example.com", password="haslo-bardzo-tajne")
 
     def upload(self, text=MINIMAL_FDS, name="model.fds"):
@@ -175,3 +175,28 @@ class ChartTests(TestCase):
         self.assertEqual(set(devc), {"C", "m"})
         self.assertEqual(len(devc["C"]), 2)
         self.assertEqual(charts.hrr_series(d, "missing"), [])
+
+
+class AccountTests(TestCase):
+    def test_register_sends_confirmation_and_start_requires_it(self):
+        from django.core import mail
+
+        resp = self.client.post(reverse("accounts:register"), {"email": "nowy@example.com", "kind": "company", "password1": "Trudne-haslo-123", "password2": "Trudne-haslo-123"})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("/konto/potwierdz/", mail.outbox[0].body)
+        link = [l for l in mail.outbox[0].body.splitlines() if "/konto/potwierdz/" in l][0]
+        path = link[link.index("/konto/"):]
+        user = User.objects.get(email="nowy@example.com")
+        self.assertFalse(user.email_confirmed)
+        self.assertEqual(self.client.get(path).status_code, 302)
+        user.refresh_from_db()
+        self.assertTrue(user.email_confirmed)
+
+    def test_password_reset_mail(self):
+        from django.core import mail
+
+        User.objects.create_user("x@example.com", "haslo-bardzo-tajne")
+        self.client.post(reverse("accounts:password_reset"), {"email": "x@example.com"})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("/konto/haslo/", mail.outbox[0].body)

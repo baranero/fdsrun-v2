@@ -92,6 +92,12 @@ jobs:
           REGISTRY_USER: ${{ github.actor }}
           SERVER_IP: ${{ steps.server.outputs.ip }}
           PORTAL_DOMAIN: ${{ steps.server.outputs.domain }}
+          APP_EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+          APP_EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+          APP_EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+          APP_EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+          APP_DEFAULT_FROM_EMAIL: ${{ secrets.DEFAULT_FROM_EMAIL }}
+          APP_ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
         run: python3 deploy/push-update.py
       - name: Record the address in the "Adresy środowisk" issue
         if: steps.server.outputs.ip != ''

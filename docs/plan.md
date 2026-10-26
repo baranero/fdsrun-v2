@@ -19,17 +19,19 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 - [x] Agent: pobranie modelu, FDS pod MPI, postęp co 10 s, pliki co 60 s, zakończenie
 - [x] Zatrzymanie przez użytkownika (plik CHID.stop, limit 5 min)
 - [x] Watchdog: brak sygnału → zlecenie „brak odpowiedzi”, maszyna usunięta; zapomniane maszyny usuwane
-- [ ] Alarm e-mail/SMS do admina o zapomnianej maszynie (po etapie 2, gdy będzie poczta)
-- [x] Pauza i potwierdzenie przy przekroczeniu wyceny o 30% (po godzinie bez decyzji — zatrzymanie)
+- [x] Alarm e-mail do admina o zapomnianej/nieusuwalnej maszynie i zleceniu bez odpowiedzi
+- [x] Przekroczenie wyceny o 30%: tylko informacja w statusie (decyzja klienta D-8), bez zatrzymywania
 - [x] Przeliczanie szacunku z rzeczywistego tempa (ETA) i kalibracja k z każdego zakończonego zlecenia
-- [ ] Konto admina klienta (po rejestracji: workflow *Admin command* → `promote_admin --email …`)
+- [x] Konto admina klienta (biuro@fp-solutions.pl)
 - [ ] Bramka: klatkaD liczy się od wysłania pliku do pobrania wyników
 
 ## Etap 2 — konta i zlecenia
-- [ ] 2FA (aplikacja), reset hasła, potwierdzenie e-maila
-- [ ] Wykresy HRR/DEVC na żywo z plików CSV
+- [x] Reset hasła, potwierdzenie e-maila (wymagane przed startem obliczeń)
+- [ ] 2FA (aplikacja)
+- [x] Wykresy HRR/DEVC na żywo z plików CSV
 - [ ] Obrazki przekrojów (slice)
-- [ ] Poczta transakcyjna (dostawca w UE)
+- [x] Poczta: SMTP przez Brevo (klucze do wpisania w GitHub — docs/sekrety.md); do tego czasu maile idą do logu
+- [x] Powiadomienia e-mail o zakończeniu/błędzie zlecenia
 - [ ] Bramka: 3 modele klienta policzone przez portal — akceptacja klienta
 
 ## Etap 3 — pieniądze

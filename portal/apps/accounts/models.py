@@ -37,6 +37,7 @@ class User(AbstractUser):
     email = models.EmailField(_("e-mail"), unique=True)
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.COMPANY)
     language = models.CharField(max_length=2, default="pl")
+    email_confirmed = models.BooleanField(default=False)
     trusted = models.BooleanField(default=False, help_text="Zaufana firma: pobieranie w trakcie i faktura zbiorcza")
     per_job_limit_pln = models.DecimalField(max_digits=9, decimal_places=2, default=300)
 

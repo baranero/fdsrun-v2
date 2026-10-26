@@ -9,6 +9,6 @@
     <p><label for="id_password">Hasło</label><input type="password" name="password" id="id_password" required></p>
     <button class="btn primary" type="submit">Zaloguj</button>
   </form>
-  <p class="muted">Nie masz konta? <a href="{% url 'accounts:register' %}">Załóż je</a>.</p>
+  <p class="muted">Nie masz konta? <a href="{% url 'accounts:register' %}">Załóż je</a>. <a href="{% url 'accounts:password_reset' %}">Nie pamiętasz hasła?</a></p>
 </section>
 {% endblock %}

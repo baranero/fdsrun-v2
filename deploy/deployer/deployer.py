@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 STACK_DIR = "/opt/fdsrun"
 ENV_FILE = os.path.join(STACK_DIR, ".env")
 ALLOWED_FILES = {"compose.yml", "Caddyfile", "deployer.py"}
-ALLOWED_ENV = {"IMAGE", "PORTAL_DOMAINS", "PORTAL_URL", "COMPUTE_IMAGE", "FDSRUN_ENV", "HCLOUD_LOCATION"}
+ALLOWED_ENV = {"IMAGE", "PORTAL_DOMAINS", "PORTAL_URL", "COMPUTE_IMAGE", "FDSRUN_ENV", "HCLOUD_LOCATION", "EMAIL_HOST", "EMAIL_PORT", "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "ADMIN_EMAIL"}
 MAX_SKEW_S = 300
 ALLOWED_MANAGE = {"smoke_test", "job_status", "jobs_list", "promote_admin", "migrate", "showmigrations"}
 

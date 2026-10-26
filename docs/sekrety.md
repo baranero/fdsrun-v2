@@ -11,7 +11,9 @@ Ja ich nie widzę; używają ich tylko workflow na GitHubie i serwer.
 | `STRIPE_SECRET_KEY` | Stripe → Developers → API keys (na start klucz testowy `sk_test_…`) | etap 3 |
 | `STRIPE_WEBHOOK_SECRET` | Stripe → Developers → Webhooks | etap 3 |
 | `ING_API_KEY` | ING Księgowość → Dane i ustawienia → Integracje → Klucz API | etap 3 |
-| `EMAIL_API_KEY` | dostawca poczty (podam, który) | etap 2 |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | Brevo (brevo.com, serwery w UE, 300 maili dziennie za darmo): SMTP & API → klucze SMTP. Host `smtp-relay.brevo.com`, port `587`, login = e-mail konta Brevo, hasło = klucz SMTP | etap 2 |
+| `DEFAULT_FROM_EMAIL` | np. `fdsrun <noreply@fdsrun.com>` — nadawcę trzeba potwierdzić w Brevo (Senders) | etap 2 |
+| `ADMIN_EMAIL` | adres na alarmy o maszynach, np. `biuro@fp-solutions.pl` | etap 2 |
 
 ## Domena
 

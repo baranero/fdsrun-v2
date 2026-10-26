@@ -107,6 +107,9 @@ def job_start(request, public_id):
     job = _own_job(request, public_id)
     if job.status != Job.Status.DRAFT:
         return HttpResponseForbidden("Zlecenie już uruchomione")
+    if not request.user.email_confirmed and not request.user.is_staff:
+        messages.error(request, "Najpierw potwierdź adres e-mail — link jest w wiadomości, którą wysłaliśmy po rejestracji.")
+        return redirect("jobs:detail", public_id=public_id)
     if any(i["level"] == "error" for i in job.analysis.get("issues", [])):
         messages.error(request, "Plik ma błędy, które zatrzymają FDS. Popraw je i wgraj ponownie.")
         return redirect("jobs:detail", public_id=public_id)

@@ -20,9 +20,13 @@ base = f"https://{host}"
 key = hashlib.sha256(f"fdsrun-deployer:{token}".encode()).hexdigest().encode()
 
 env = {}
+# application secrets kept in GitHub (see docs/sekrety.md); only non-empty ones are sent
+for key in ("EMAIL_HOST", "EMAIL_PORT", "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "ADMIN_EMAIL"):
+    if os.environ.get("APP_" + key):
+        env[key] = os.environ["APP_" + key]
 if domain:
     # real DNS exists: make the real domain primary, keep sslip as a fallback
-    env = {"PORTAL_DOMAINS": f"{domain}, {host}", "PORTAL_URL": f"https://{domain}"}
+    env.update({"PORTAL_DOMAINS": f"{domain}, {host}", "PORTAL_URL": f"https://{domain}"})
 
 payload = {
     "ts": time.time(),

@@ -147,6 +147,18 @@ PRICING = {
     "results_days": int(env("RESULTS_DAYS", "30")),
 }
 
+# E-mail: SMTP when configured (Brevo, EU), otherwise printed to the log
+EMAIL_HOST = env("EMAIL_HOST", "")
+EMAIL_PORT = int(env("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = True
+EMAIL_TIMEOUT = 20
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend" if EMAIL_HOST else "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "fdsrun <noreply@fdsrun.com>")
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+ADMIN_EMAIL = env("ADMIN_EMAIL", "biuro@fp-solutions.pl")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

@@ -5,6 +5,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from apps.jobs import notify
 from apps.jobs.models import Job, log_event
 
 from . import hcloud_client
@@ -72,6 +73,9 @@ def finish_job(job_id, status, message=""):
         log_event(job, "finished", f"{status}: {message}", actor="agent" if status == Job.Status.DONE else "system")
     if status == Job.Status.DONE:
         recalibrate(job)
+    notify.job_finished(job)
+    if status == Job.Status.STALLED:
+        notify.admin_alert(f"zlecenie {job.public_id} bez odpowiedzi", f"{job.owner.email}, {job.name}, {job.server_type}: {message}")
     delete_machine.delay(job.id)
 
 
@@ -110,6 +114,7 @@ def delete_machine(self, job_id):
         machine.status = Machine.Status.LOST
         machine.save(update_fields=["status"])
         log_event(machine.job, "machine_lost", str(e))
+        notify.admin_alert(f"nie mogę usunąć maszyny {machine.name}", f"Hetzner id {machine.hcloud_id}, {machine.server_type}, ip {machine.ip}. Błąd: {e}\nUsuń ją ręcznie w konsoli Hetzner — nalicza koszty.")
         return
     machine.status = Machine.Status.DELETED
     machine.deleted_at = timezone.now()
@@ -147,5 +152,7 @@ def watchdog():
             log.warning("watchdog: deleting forgotten server %s %s", s.id, s.name)
             try:
                 s.delete()
-            except Exception:  # noqa: BLE001
+                notify.admin_alert(f"usunąłem zapomnianą maszynę {s.name}", f"Serwer {s.id} ({s.server_type.name}) nie był przypisany do żadnego żywego zlecenia; watchdog go usunął.")
+            except Exception as e:  # noqa: BLE001
                 log.exception("watchdog: delete failed for %s", s.id)
+                notify.admin_alert(f"zapomniana maszyna {s.name} — nie mogę usunąć", f"Serwer {s.id}: {e}. Usuń ręcznie w konsoli Hetzner.")
