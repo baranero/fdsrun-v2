@@ -1,0 +1,37 @@
+<div id="status" {% if job.is_active %}hx-get="{% url 'jobs:detail' job.public_id %}" hx-trigger="every 5s" hx-swap="outerHTML"{% endif %}>
+<section>
+  <div class="actions">
+    <span class="pill {{ job.status }}">{{ job.get_status_display }}</span>
+    {% if job.status_message %}<span class="muted">{{ job.status_message }}</span>{% endif %}
+    {% if job.is_active and not job.stop_requested %}
+      <form method="post" action="{% url 'jobs:stop' job.public_id %}" class="inline">{% csrf_token %}<button class="btn secondary" type="submit">Zatrzymaj</button></form>
+    {% endif %}
+  </div>
+  <div class="strip">
+    <div class="stat"><span class="k">Komórki</span><span class="v">{{ job.total_cells }}</span><span class="s">{{ job.n_meshes }} siatek</span></div>
+    <div class="stat"><span class="k">Procesy</span><span class="v">{{ job.procs }}</span><span class="s">{{ job.server_type }}</span></div>
+    <div class="stat key"><span class="k">{% if job.status == 'draft' %}Szacowany czas{% else %}Pozostało{% endif %}</span><span class="v">{% if job.status == 'draft' or job.eta_hours is None %}{{ job.est_hours|floatformat:1 }} h{% else %}{{ job.eta_hours|floatformat:1 }} h{% endif %}</span><span class="s">{% if job.is_active %}liczy się {{ job.wall_seconds|floatformat:0 }} s{% else %}szacunek {{ job.est_hours|floatformat:1 }} h{% endif %}</span></div>
+    <div class="stat key"><span class="k">Cena netto</span><span class="v">{{ job.est_price_pln|floatformat:0 }} zł</span><span class="s">serwer {{ job.est_cost_eur|floatformat:2 }} €</span></div>
+  </div>
+  {% if job.status != 'draft' %}
+  <div class="progress"><span style="width:{{ job.progress_pct }}%"></span></div>
+  <p class="muted mono">krok {{ job.progress_step }} · t = {{ job.progress_t|floatformat:1 }} / {{ job.sim_time|floatformat:0 }} s · Δt = {{ job.progress_dt|floatformat:4 }} s</p>
+  {% endif %}
+</section>
+{% if job.out_tail %}
+<section><h2>Log FDS</h2><pre class="log">{{ job.out_tail }}</pre></section>
+{% endif %}
+{% if job.log_tail and job.status == 'failed' %}
+<section><h3>Wyjście programu</h3><pre class="log">{{ job.log_tail }}</pre></section>
+{% endif %}
+{% if files %}
+<section>
+  <h2>Pliki</h2>
+  <div class="table-scroll"><table>
+    <tr><th>Plik</th><th class="num">Rozmiar</th><th>Zapisano</th></tr>
+    {% for f in files %}<tr><td><a href="{% url 'jobs:file' job.public_id f.name %}">{{ f.name }}</a></td><td class="num">{{ f.size|filesizeformat }}</td><td>{{ f.mtime|date:"d.m.Y H:i" }}</td></tr>{% endfor %}
+  </table></div>
+  {% if job.expires_at %}<p class="muted">Wyniki dostępne do {{ job.expires_at|date:"d.m.Y" }}.</p>{% endif %}
+</section>
+{% endif %}
+</div>

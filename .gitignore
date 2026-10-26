@@ -1,4 +1,9 @@
 samples
 out
-*.html.out
 node_modules/
+__pycache__/
+*.pyc
+portal/dev.sqlite3
+portal/data/
+portal/staticfiles/
+analyzer-fds.html

@@ -1,0 +1,62 @@
+#cloud-config
+# Portal server (staging or production). Rendered by .github/workflows/provision.yml,
+# which fills the __PLACEHOLDERS__ and embeds compose.yml, Caddyfile and deployer.py.
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - python3
+  - unattended-upgrades
+write_files:
+  - path: /opt/fdsrun/.env
+    permissions: "0600"
+    content: |
+      FDSRUN_ENV=__FDSRUN_ENV__
+      HCLOUD_TOKEN=__HCLOUD_TOKEN__
+      HCLOUD_LOCATION=__LOCATION__
+      DJANGO_SECRET_KEY=__DJANGO_SECRET_KEY__
+      POSTGRES_PASSWORD=__POSTGRES_PASSWORD__
+      IMAGE=__IMAGE__
+      COMPUTE_IMAGE=__COMPUTE_IMAGE__
+      PORTAL_DOMAINS=__DOMAIN__
+      PORTAL_URL=https://__DOMAIN__
+  - path: /opt/fdsrun/compose.yml
+    content: |
+__COMPOSE__
+  - path: /opt/fdsrun/Caddyfile
+    content: |
+__CADDYFILE__
+  - path: /opt/fdsrun/deployer.py
+    permissions: "0755"
+    content: |
+__DEPLOYER__
+  - path: /etc/systemd/system/fdsrun-deployer.service
+    content: |
+      [Unit]
+      Description=fdsrun deployer (receives updates from GitHub Actions)
+      After=docker.service network-online.target
+      Wants=network-online.target
+      [Service]
+      ExecStart=/usr/bin/python3 /opt/fdsrun/deployer.py
+      Restart=always
+      RestartSec=5
+      [Install]
+      WantedBy=multi-user.target
+  - path: /opt/fdsrun/set-domains.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      # Until DNS for the real domain exists, the server is reachable as <ip>.sslip.io.
+      IP=$(curl -fs http://169.254.169.254/hetzner/v1/metadata/public-ipv4)
+      SSLIP="${IP}.sslip.io"
+      sed -i "s|^PORTAL_DOMAINS=.*|PORTAL_DOMAINS=${SSLIP}, __DOMAIN__|" /opt/fdsrun/.env
+      sed -i "s|^PORTAL_URL=.*|PORTAL_URL=https://${SSLIP}|" /opt/fdsrun/.env
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable --now docker
+  - /opt/fdsrun/set-domains.sh
+  - systemctl daemon-reload
+  - systemctl enable --now fdsrun-deployer.service
+  - cd /opt/fdsrun && docker compose --env-file .env pull caddy redis db || true
+  - cd /opt/fdsrun && docker compose --env-file .env up -d caddy redis db || true

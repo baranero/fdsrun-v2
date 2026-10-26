@@ -1,0 +1,34 @@
+#cloud-config
+# Compute machine for one fdsrun job. Placeholders are filled by apps/compute/hcloud_client.py.
+package_update: true
+packages:
+  - docker.io
+  - python3
+write_files:
+  - path: /etc/fdsrun-agent.env
+    permissions: "0600"
+    content: |
+      PORTAL_URL=__PORTAL_URL__
+      JOB_ID=__JOB_ID__
+      JOB_TOKEN=__JOB_TOKEN__
+      IMAGE=__IMAGE__
+  - path: /opt/fdsrun/agent.py
+    permissions: "0755"
+    content: |
+__AGENT__
+  - path: /etc/systemd/system/fdsrun-agent.service
+    content: |
+      [Unit]
+      Description=fdsrun compute agent
+      After=docker.service network-online.target
+      Wants=network-online.target
+      [Service]
+      Type=simple
+      ExecStart=/usr/bin/python3 /opt/fdsrun/agent.py
+      Restart=no
+      [Install]
+      WantedBy=multi-user.target
+runcmd:
+  - systemctl enable --now docker
+  - systemctl daemon-reload
+  - systemctl start fdsrun-agent.service

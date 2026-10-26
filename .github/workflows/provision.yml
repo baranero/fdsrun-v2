@@ -1,0 +1,89 @@
+name: Provision portal server
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "staging or production"
+        default: staging
+        type: choice
+        options: [staging, production]
+      server_type:
+        description: "Hetzner server type for the portal"
+        default: cx23
+      location:
+        description: "Hetzner location"
+        default: nbg1
+      domain:
+        description: "Final domain (DNS may be added later)"
+        default: staging.fdsrun.com
+
+permissions:
+  contents: read
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    env:
+      HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+      NAME: fdsrun-${{ github.event.inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refuse to create a second server with the same name
+        run: |
+          n=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers?name=$NAME" | python3 -c "import json,sys; print(len(json.load(sys.stdin)['servers']))")
+          if [ "$n" != "0" ]; then echo "::error::server $NAME already exists; delete it in the Hetzner console first"; exit 1; fi
+      - name: Render cloud-init
+        env:
+          FDSRUN_ENV: ${{ github.event.inputs.environment }}
+          LOCATION: ${{ github.event.inputs.location }}
+          DOMAIN: ${{ github.event.inputs.domain }}
+          IMAGE: ghcr.io/${{ github.repository }}/portal:main
+          COMPUTE_IMAGE: ghcr.io/${{ github.repository }}/fds:6.10.1
+        run: python3 deploy/render-cloud-init.py > /tmp/user-data.yml && wc -c /tmp/user-data.yml
+      - name: Firewall (80, 443 in; everything out)
+        run: |
+          fw=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/firewalls?name=fdsrun-portal" | python3 -c "import json,sys; f=json.load(sys.stdin)['firewalls']; print(f[0]['id'] if f else '')")
+          if [ -z "$fw" ]; then
+            fw=$(curl -fsS -X POST -H "Authorization: Bearer $HCLOUD_TOKEN" -H "Content-Type: application/json" https://api.hetzner.cloud/v1/firewalls -d '{"name":"fdsrun-portal","rules":[{"direction":"in","protocol":"tcp","port":"80","source_ips":["0.0.0.0/0","::/0"]},{"direction":"in","protocol":"tcp","port":"443","source_ips":["0.0.0.0/0","::/0"]},{"direction":"in","protocol":"icmp","source_ips":["0.0.0.0/0","::/0"]}]}' | python3 -c "import json,sys; print(json.load(sys.stdin)['firewall']['id'])")
+          fi
+          echo "FW_ID=$fw" >> "$GITHUB_ENV"
+      - name: Create the server
+        run: |
+          python3 - <<'EOF'
+          import json, os, urllib.request
+          body = {
+            "name": os.environ["NAME"],
+            "server_type": "${{ github.event.inputs.server_type }}",
+            "image": "ubuntu-24.04",
+            "location": "${{ github.event.inputs.location }}",
+            "user_data": open("/tmp/user-data.yml").read(),
+            "labels": {"app": "fdsrun-portal", "env": "${{ github.event.inputs.environment }}"},
+            "firewalls": [{"firewall": int(os.environ["FW_ID"])}],
+          }
+          req = urllib.request.Request("https://api.hetzner.cloud/v1/servers", data=json.dumps(body).encode(), headers={"Authorization": f"Bearer {os.environ['HCLOUD_TOKEN']}", "Content-Type": "application/json"})
+          with urllib.request.urlopen(req) as r:
+              s = json.load(r)["server"]
+          ip = s["public_net"]["ipv4"]["ip"]
+          print(f"server {s['id']} created, ip {ip}")
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"SERVER_IP={ip}\n")
+          EOF
+      - name: Wait for the deployer (cloud-init installs Docker first, ~3-5 min)
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -X POST -d '{}' "https://$SERVER_IP.sslip.io/_deploy/status" || true)
+            if [ "$code" = "403" ]; then echo "deployer answers (HTTP 403 for an unsigned request is expected)"; break; fi
+            echo "waiting... ($code)"; sleep 15
+          done
+      - name: Summary
+        run: |
+          {
+            echo "## Serwer ${NAME} gotowy"
+            echo
+            echo "- Adres IP: \`$SERVER_IP\`"
+            echo "- Tymczasowy adres: https://$SERVER_IP.sslip.io"
+            echo "- Docelowa domena: ${{ github.event.inputs.domain }} — dodaj w DNS rekord **A** \`${{ github.event.inputs.domain }} → $SERVER_IP\`, a potem ustaw zmienną repozytorium \`STAGING_DOMAIN\` na \`${{ github.event.inputs.domain }}\`."
+            echo "- Portal pojawi się po pierwszym uruchomieniu workflow *CI and deploy* (push na main)."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,73 @@
+# Portal stack on one Hetzner server (staging and production use the same file, different .env).
+# Managed by deploy/deployer/deployer.py; do not edit on the server.
+name: fdsrun
+
+services:
+  caddy:
+    image: caddy:2.9.1-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      PORTAL_DOMAINS: ${PORTAL_DOMAINS}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  web:
+    image: ${IMAGE}
+    restart: unless-stopped
+    env_file: .env
+    environment: &django_env
+      FDSRUN_ENV: ${FDSRUN_ENV:-staging}
+      DATABASE_URL: postgres://fdsrun:${POSTGRES_PASSWORD}@db:5432/fdsrun
+      REDIS_URL: redis://redis:6379/0
+      DJANGO_ALLOWED_HOSTS: ${PORTAL_DOMAINS}
+      JOB_DATA_ROOT: /data/jobs
+    volumes: [jobdata:/data/jobs]
+    entrypoint: ["/bin/sh", "/app/portal/entrypoint.sh"]
+    command: ["gunicorn", "fdsrun.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "600", "--access-logfile", "-"]
+    depends_on: [db, redis]
+
+  worker:
+    image: ${IMAGE}
+    restart: unless-stopped
+    env_file: .env
+    environment: *django_env
+    volumes: [jobdata:/data/jobs]
+    command: ["celery", "-A", "fdsrun", "worker", "--concurrency", "2", "--loglevel", "info"]
+    depends_on: [db, redis]
+
+  beat:
+    image: ${IMAGE}
+    restart: unless-stopped
+    env_file: .env
+    environment: *django_env
+    command: ["celery", "-A", "fdsrun", "beat", "--loglevel", "info", "--schedule", "/tmp/celerybeat-schedule"]
+    depends_on: [db, redis]
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fdsrun
+      POSTGRES_USER: fdsrun
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fdsrun"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  caddy_data:
+  caddy_config:
+  jobdata:
+  pgdata:

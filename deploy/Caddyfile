@@ -1,0 +1,19 @@
+{
+	email biuro@fp-solutions.pl
+}
+
+{$PORTAL_DOMAINS} {
+	encode zstd gzip
+	request_body {
+		max_size 20GB
+	}
+
+	# updates pushed by GitHub Actions (HMAC-signed) go to the deployer on the host
+	handle /_deploy/* {
+		reverse_proxy host.docker.internal:9000
+	}
+
+	handle {
+		reverse_proxy web:8000
+	}
+}

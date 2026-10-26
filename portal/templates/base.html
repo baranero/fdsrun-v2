@@ -1,0 +1,33 @@
+{% load static %}<!doctype html>
+<html lang="{{ LANGUAGE_CODE|default:'pl' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}fdsrun{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="{% static 'app.css' %}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="{% url 'home' %}">fdsrun{% if ENVIRONMENT != 'production' %} <span class="env">{{ ENVIRONMENT }}</span>{% endif %}</a>
+  <nav>
+    {% if user.is_authenticated %}
+      <a href="{% url 'jobs:list' %}">Zlecenia</a>
+      <a href="{% url 'jobs:new' %}">Nowe zlecenie</a>
+      {% if user.is_staff %}<a href="{% url 'admin:index' %}">Admin</a>{% endif %}
+      <form method="post" action="{% url 'accounts:logout' %}" class="inline">{% csrf_token %}<button class="link" type="submit">Wyloguj ({{ user.email }})</button></form>
+    {% else %}
+      <a href="{% url 'accounts:login' %}">Zaloguj</a>
+      <a href="{% url 'accounts:register' %}">Załóż konto</a>
+    {% endif %}
+  </nav>
+</header>
+<main class="wrap">
+  {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="foot">fdsrun · obliczenia FDS w chmurze · serwery w UE</footer>
+</body>
+</html>

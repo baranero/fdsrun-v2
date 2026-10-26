@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Nowe zlecenie · fdsrun{% endblock %}
+{% block content %}
+<section class="card" style="max-width:560px">
+  <h1>Nowe zlecenie</h1>
+  <p class="muted">Wgraj plik .fds wyeksportowany z PyroSim. Przeanalizuję go i pokażę czas, koszt i ewentualne błędy, zanim cokolwiek się uruchomi.</p>
+  <form method="post" enctype="multipart/form-data">{% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn primary" type="submit">Przeanalizuj plik</button>
+  </form>
+</section>
+{% endblock %}

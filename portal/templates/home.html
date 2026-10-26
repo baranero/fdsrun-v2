@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <div class="eyebrow">wersja {{ ENVIRONMENT }}</div>
+  <h1>Obliczenia FDS w chmurze</h1>
+  <p class="muted">Wgraj plik .fds z PyroSim, zobacz czas i koszt, uruchom obliczenia na własnej maszynie i śledź je na żywo.</p>
+  <div class="actions">
+    {% if user.is_authenticated %}<a class="btn primary" href="{% url 'jobs:new' %}">Nowe zlecenie</a>{% else %}<a class="btn primary" href="{% url 'accounts:register' %}">Załóż konto</a><a class="btn secondary" href="{% url 'accounts:login' %}">Zaloguj</a>{% endif %}
+  </div>
+</section>
+{% endblock %}

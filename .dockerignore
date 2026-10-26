@@ -1,0 +1,12 @@
+.git
+samples
+out
+**/__pycache__
+**/*.pyc
+portal/dev.sqlite3
+portal/data
+portal/staticfiles
+analyzer-fds.html
+docs
+deploy
+fds-image

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ job.public_id }} {{ job.name }} · fdsrun{% endblock %}
+{% block content %}
+<section>
+  <div class="eyebrow">zlecenie {{ job.public_id }} · {{ job.filename }}</div>
+  <h1>{{ job.name }}</h1>
+</section>
+
+{% include "jobs/_status.html" %}
+
+{% if job.status == 'draft' %}
+<div class="cols">
+  <section>
+    <h2>Wybierz serwer</h2>
+    <p class="muted">FDS liczy jedną siatkę na jednym procesie. Czas dyktuje najbardziej obciążony proces, więc więcej rdzeni nie zawsze pomaga.</p>
+    <form method="post" action="{% url 'jobs:start' job.public_id %}">{% csrf_token %}
+    <div class="table-scroll"><table>
+      <tr><th></th><th>Serwer</th><th class="num">Procesy</th><th class="num">Czas</th><th class="num">Cena netto</th></tr>
+      {% for o in options %}
+      <tr{% if o.procs == job.procs and o.server == job.server_type %} class="pick"{% endif %}>
+        <td><input type="radio" name="choice" value="{{ o.procs }}:{{ o.server }}" {% if o.procs == job.procs and o.server == job.server_type %}checked{% endif %} onchange="document.getElementById('procs').value='{{ o.procs }}';document.getElementById('server_type').value='{{ o.server }}'"></td>
+        <td>{{ o.server }} · {{ o.vcpu }} vCPU</td>
+        <td class="num">{{ o.procs }}</td>
+        <td class="num">{{ o.hours|floatformat:1 }} h</td>
+        <td class="num">{{ o.pricePln|floatformat:0 }} zł</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+    <input type="hidden" id="procs" name="procs" value="{{ job.procs }}">
+    <input type="hidden" id="server_type" name="server_type" value="{{ job.server_type }}">
+    {% if confidence.note %}<p class="muted">{{ confidence.note }}</p>{% endif %}
+    <div class="actions"><button class="btn primary" type="submit" {% if has_errors %}disabled{% endif %}>Uruchom obliczenia</button>{% if has_errors %}<span class="muted">Najpierw popraw błędy z listy poniżej.</span>{% endif %}</div>
+    </form>
+    {% if tips %}<ul class="tips">{% for t in tips %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+  </section>
+  <section>
+    <h2>Sprawdzenie pliku</h2>
+    {% if issues %}
+    <ul class="issues">{% for i in issues %}<li><span><span class="pill {{ i.level }}">{% if i.level == 'error' %}błąd{% elif i.level == 'warn' %}uwaga{% else %}info{% endif %}</span></span><span>{{ i.msg }}</span></li>{% endfor %}</ul>
+    {% else %}<p class="muted">Nie znaleziono problemów.</p>{% endif %}
+  </section>
+</div>
+{% endif %}
+{% endblock %}

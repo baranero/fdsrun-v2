@@ -1,0 +1,31 @@
+#!/usr/bin/env node
+// Analyze one .fds file and print JSON (used by the Django portal through a subprocess).
+// usage: node cli.js <file.fds> [--multiplier 6] [--eur-pln 4.25]
+const fs = require('fs');
+const A = require('./fds-analyzer.js');
+
+const args = process.argv.slice(2);
+const file = args.find(a => !a.startsWith('--'));
+if (!file) { console.error('usage: cli.js <file.fds>'); process.exit(2); }
+const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? Number(args[i + 1]) : def; };
+
+let text;
+try { text = fs.readFileSync(file, 'utf8'); } catch (e) { console.log(JSON.stringify({ ok: false, error: `cannot read file: ${e.message}` })); process.exit(0); }
+
+try {
+  const { model, issues } = A.analyze(text);
+  const cfg = { ...A.DEFAULTS, multiplier: opt('--multiplier', A.DEFAULTS.multiplier), eurPln: opt('--eur-pln', A.DEFAULTS.eurPln) };
+  const estimate = A.estimate(model, cfg);
+  const advice = A.advise(model, cfg);
+  // strip functions / heavy fields
+  const meshes = model.meshes.map(m => ({ id: m.id, ijk: m.ijk, xb: m.xb, dx: m.dx, dy: m.dy, dz: m.dz, cells: m.cells, mpi: m.mpi }));
+  console.log(JSON.stringify({
+    ok: true,
+    model: { ...model, meshes, velocity: { ...model.velocity, integral: undefined } },
+    issues,
+    estimate,
+    advice: { options: advice.options, best: advice.best, current: advice.current, fastest: advice.fastest, cheapest: advice.cheapest, tips: advice.tips },
+  }));
+} catch (e) {
+  console.log(JSON.stringify({ ok: false, error: `analyzer failed: ${e.message}` }));
+}

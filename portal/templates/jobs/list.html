@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Zlecenia · fdsrun{% endblock %}
+{% block content %}
+<section>
+  <div class="actions" style="justify-content:space-between"><h1>Zlecenia</h1><a class="btn primary" href="{% url 'jobs:new' %}">Nowe zlecenie</a></div>
+  {% if jobs %}
+  <div class="table-scroll"><table>
+    <tr><th>Nr</th><th>Nazwa</th><th>Status</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Szacunek</th><th class="num">Postęp</th><th>Utworzono</th></tr>
+    {% for j in jobs %}
+    <tr>
+      <td class="mono"><a href="{% url 'jobs:detail' j.public_id %}">{{ j.public_id }}</a></td>
+      <td>{{ j.name }}</td>
+      <td><span class="pill {{ j.status }}">{{ j.get_status_display }}</span></td>
+      <td class="num">{{ j.total_cells }}</td>
+      <td class="num">{{ j.procs }} · {{ j.server_type }}</td>
+      <td class="num">{{ j.est_hours|floatformat:1 }} h</td>
+      <td class="num">{% if j.is_active %}{{ j.progress_pct }}%{% elif j.status == 'done' %}100%{% else %}—{% endif %}</td>
+      <td>{{ j.created_at|date:"d.m.Y H:i" }}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% else %}
+  <p class="muted">Nie masz jeszcze zleceń. Wgraj pierwszy plik .fds.</p>
+  {% endif %}
+</section>
+{% endblock %}
