@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
   packages: write
-  actions: write
+  issues: write
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}/portal
@@ -89,14 +89,21 @@ jobs:
           SERVER_IP: ${{ steps.server.outputs.ip }}
           PORTAL_DOMAIN: ${{ vars.STAGING_DOMAIN || '' }}
         run: python3 deploy/push-update.py
-      - name: Record the address in repository variables (STAGING_IP, STAGING_URL)
+      - name: Record the address in the "Adresy środowisk" issue
         if: steps.server.outputs.ip != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IP: ${{ steps.server.outputs.ip }}
           DOMAIN: ${{ vars.STAGING_DOMAIN || '' }}
+          IMAGE_TAG: ${{ needs.build.outputs.tag }}
         run: |
-          set_var() { gh api -X PATCH "repos/$GITHUB_REPOSITORY/actions/variables/$1" -f name="$1" -f value="$2" >/dev/null 2>&1 || gh api -X POST "repos/$GITHUB_REPOSITORY/actions/variables" -f name="$1" -f value="$2" >/dev/null; }
-          set_var STAGING_IP "$IP"
-          set_var STAGING_URL "https://${DOMAIN:-$IP.sslip.io}"
-          echo "STAGING_URL=https://${DOMAIN:-$IP.sslip.io}" >> "$GITHUB_STEP_SUMMARY"
+          url="https://${DOMAIN:-$IP.sslip.io}"
+          body="**Staging**: $url  (IP $IP, obraz \`$IMAGE_TAG\`, wdrożono $(date -u +%Y-%m-%dT%H:%MZ))"
+          num=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=adresy" --jq '.[0].number' 2>/dev/null || true)
+          if [ -z "$num" ] || [ "$num" = "null" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/labels" -f name=adresy -f color=0e8a16 >/dev/null 2>&1 || true
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues" -f title="Adresy środowisk" -f body="$body" -f 'labels[]=adresy' >/dev/null
+          else
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/$num" -f body="$body" >/dev/null
+          fi
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
