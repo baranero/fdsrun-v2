@@ -23,7 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 STACK_DIR = "/opt/fdsrun"
 ENV_FILE = os.path.join(STACK_DIR, ".env")
-ALLOWED_FILES = {"compose.yml", "Caddyfile"}
+ALLOWED_FILES = {"compose.yml", "Caddyfile", "deployer.py"}
 ALLOWED_ENV = {"IMAGE", "PORTAL_DOMAINS", "PORTAL_URL", "COMPUTE_IMAGE", "FDSRUN_ENV", "HCLOUD_LOCATION"}
 MAX_SKEW_S = 300
 ALLOWED_MANAGE = {"smoke_test", "job_status", "promote_admin", "migrate", "showmigrations"}
@@ -117,11 +117,16 @@ class Handler(BaseHTTPRequestHandler):
         if data is None:
             return
         log = []
+        restart_self = False
         for name, text in (data.get("files") or {}).items():
             if name in ALLOWED_FILES:
-                with open(os.path.join(STACK_DIR, name), "w") as f:
+                path = os.path.join(STACK_DIR, name)
+                if name == "deployer.py" and os.path.exists(path) and open(path).read() == text:
+                    continue
+                with open(path, "w") as f:
                     f.write(text)
                 log.append(f"wrote {name}")
+                restart_self = restart_self or name == "deployer.py"
         env = read_env()
         for k, v in (data.get("env") or {}).items():
             if k in ALLOWED_ENV and isinstance(v, str):
@@ -137,6 +142,9 @@ class Handler(BaseHTTPRequestHandler):
         rc2, out2 = compose("up", "-d", "--remove-orphans")
         log.append(f"up rc={rc2}\n{out2[-3000:]}")
         sh(["docker", "image", "prune", "-f"], timeout=300)
+        if restart_self:
+            log.append("deployer updated, restarting itself")
+            subprocess.Popen(["sh", "-c", "sleep 2; systemctl restart fdsrun-deployer"])
         self._reply(200 if rc == 0 and rc2 == 0 else 500, {"ok": rc == 0 and rc2 == 0, "log": "\n".join(log)})
 
     def log_message(self, fmt, *args):  # quieter journal

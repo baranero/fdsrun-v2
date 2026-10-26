@@ -17,6 +17,10 @@ on:
       domain:
         description: "Final domain (DNS may be added later)"
         default: staging.fdsrun.com
+      recreate:
+        description: "Delete an existing server with this name first (ALL ITS DATA IS LOST)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -30,10 +34,14 @@ jobs:
       NAME: fdsrun-${{ github.event.inputs.environment }}
     steps:
       - uses: actions/checkout@v4
-      - name: Refuse to create a second server with the same name
+      - name: Refuse to create a second server with the same name (unless recreate)
         run: |
-          n=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers?name=$NAME" | python3 -c "import json,sys; print(len(json.load(sys.stdin)['servers']))")
-          if [ "$n" != "0" ]; then echo "::error::server $NAME already exists; delete it in the Hetzner console first"; exit 1; fi
+          id=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers?name=$NAME" | python3 -c "import json,sys; s=json.load(sys.stdin)['servers']; print(s[0]['id'] if s else '')")
+          if [ -n "$id" ]; then
+            if [ "${{ github.event.inputs.recreate }}" != "true" ]; then echo "::error::server $NAME already exists; tick 'recreate' to replace it"; exit 1; fi
+            if [ "${{ github.event.inputs.environment }}" = "production" ]; then echo "::error::refusing to recreate production automatically"; exit 1; fi
+            curl -fsS -X DELETE -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers/$id" >/dev/null && echo "deleted old server $id"; sleep 20
+          fi
       - name: Render cloud-init
         env:
           FDSRUN_ENV: ${{ github.event.inputs.environment }}

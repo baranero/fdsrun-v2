@@ -29,7 +29,7 @@ payload = {
     "image": image,
     "registry_user": os.environ.get("REGISTRY_USER", "github"),
     "registry_token": os.environ.get("REGISTRY_TOKEN", ""),
-    "files": {"compose.yml": open("deploy/compose.yml").read(), "Caddyfile": open("deploy/Caddyfile").read()},
+    "files": {"compose.yml": open("deploy/compose.yml").read(), "Caddyfile": open("deploy/Caddyfile").read(), "deployer.py": open("deploy/deployer/deployer.py").read()},
     "env": env,
 }
 body = json.dumps(payload).encode()
