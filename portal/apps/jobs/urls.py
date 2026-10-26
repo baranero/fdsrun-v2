@@ -7,6 +7,7 @@ urlpatterns = [
     path("", views.job_list, name="list"),
     path("nowe/", views.job_new, name="new"),
     path("<str:public_id>/", views.job_detail, name="detail"),
+    path("<str:public_id>/wykresy.json", views.job_charts, name="charts"),
     path("<str:public_id>/start/", views.job_start, name="start"),
     path("<str:public_id>/stop/", views.job_stop, name="stop"),
     path("<str:public_id>/kontynuuj/", views.job_continue, name="continue"),

@@ -9,6 +9,7 @@ from django.views.decorators.http import require_POST
 
 from apps.compute import tasks as compute_tasks
 
+from . import charts
 from .analyzer import AnalyzerError, analyze_file, multiplier_for, prepare_run_file
 from .forms import StartForm, UploadForm
 from .models import Job, log_event
@@ -85,6 +86,19 @@ def job_detail(request, public_id):
     if request.htmx:
         return render(request, "jobs/_status.html", ctx)
     return render(request, "jobs/detail.html", ctx)
+
+
+@login_required
+def job_charts(request, public_id):
+    """JSON for the live charts: HRR and device readings grouped by unit."""
+    job = _own_job(request, public_id)
+    from django.http import JsonResponse
+
+    return JsonResponse({
+        "t_end": job.sim_time,
+        "hrr": charts.hrr_series(job.results_dir, job.chid),
+        "devc": charts.devc_series(job.results_dir, job.chid),
+    })
 
 
 @login_required

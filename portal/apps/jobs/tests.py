@@ -156,3 +156,22 @@ class JobFlowTests(TestCase):
         job.refresh_from_db()
         self.assertEqual(job.status, Job.Status.STALLED)
         delete_server.assert_called_once_with(7)
+
+
+class ChartTests(TestCase):
+    def test_hrr_and_devc_parse(self):
+        from pathlib import Path
+
+        from . import charts
+
+        d = Path(TMP) / "charts"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "x_hrr.csv").write_text("s,kW,kW,kW\nTime,HRR,Q_RADI,Q_CONV\n0,0,0,0\n2,10,-3,-7\n4,20,-6,-14\n6,30,-9,-21,broken\n")
+        (d / "x_devc.csv").write_text("s,C,C,m\nTime,T1,T2,VIS\n0,20,20,30\n2,25,21,29.5\n")
+        hrr = charts.hrr_series(d, "x")
+        self.assertEqual([s["name"] for s in hrr], ["HRR", "Q_RADI", "Q_CONV"])
+        self.assertEqual(hrr[0]["last"], 20)  # broken trailing line skipped
+        devc = charts.devc_series(d, "x")
+        self.assertEqual(set(devc), {"C", "m"})
+        self.assertEqual(len(devc["C"]), 2)
+        self.assertEqual(charts.hrr_series(d, "missing"), [])

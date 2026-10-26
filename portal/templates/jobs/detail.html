@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static %}
 {% block title %}{{ job.public_id }} {{ job.name }} · fdsrun{% endblock %}
 {% block content %}
 <section>
@@ -7,6 +7,14 @@
 </section>
 
 {% include "jobs/_status.html" %}
+
+{% if job.status != 'draft' %}
+<section>
+  <h2>Wykresy</h2>
+  <div id="charts" class="charts" data-url="{% url 'jobs:charts' job.public_id %}" data-active="{% if job.is_active %}1{% else %}0{% endif %}"></div>
+</section>
+<script src="{% static 'charts.js' %}" defer></script>
+{% endif %}
 
 {% if job.status == 'draft' %}
 <div class="cols">
