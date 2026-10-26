@@ -14,7 +14,9 @@ class AnalyzerError(Exception):
 
 
 def analyze_file(path: Path, multiplier: float | None = None) -> dict:
-    cmd = ["node", str(ANALYZER_CLI), str(path), "--eur-pln", str(settings.PRICING["eur_pln"])]
+    from apps.compute.models import ServerCalibration
+
+    cmd = ["node", str(ANALYZER_CLI), str(path), "--eur-pln", str(settings.PRICING["eur_pln"])] + ServerCalibration.as_cli_args()
     if multiplier:
         cmd += ["--multiplier", str(multiplier)]
     try:

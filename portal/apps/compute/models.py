@@ -45,3 +45,34 @@ class Machine(models.Model):
     @property
     def cost_eur(self) -> float:
         return round(self.hours * self.eur_per_hour, 4)
+
+
+class ServerCalibration(models.Model):
+    """Measured wall seconds per (cell on the busiest process × time step), per server type.
+    Updated after every completed job (exponential moving average), fed back into the analyzer."""
+
+    server_type = models.CharField(max_length=12, unique=True)
+    k = models.FloatField()
+    samples = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.server_type}: k={self.k:.3g} s ({self.samples})"
+
+    @classmethod
+    def record(cls, server_type, measured_k):
+        if not (1e-8 < measured_k < 1e-3):
+            return None
+        row, created = cls.objects.get_or_create(server_type=server_type, defaults={"k": measured_k, "samples": 1})
+        if not created:
+            row.k = 0.7 * row.k + 0.3 * measured_k
+            row.samples += 1
+            row.save()
+        return row
+
+    @classmethod
+    def as_cli_args(cls):
+        args = []
+        for row in cls.objects.all():
+            args += ["--k", f"{row.server_type}={row.k:.6g}"]
+        return args

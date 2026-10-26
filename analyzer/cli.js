@@ -8,13 +8,17 @@ const args = process.argv.slice(2);
 const file = args.find(a => !a.startsWith('--'));
 if (!file) { console.error('usage: cli.js <file.fds>'); process.exit(2); }
 const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? Number(args[i + 1]) : def; };
+// --k cpx42=3.4e-6 (repeatable): measured wall-seconds per cell-step for a server type
+const kOverrides = {};
+args.forEach((a, i) => { if (a === '--k' && args[i + 1] && args[i + 1].includes('=')) { const [srv, v] = args[i + 1].split('='); if (Number(v) > 0) kOverrides[srv] = Number(v); } });
 
 let text;
 try { text = fs.readFileSync(file, 'utf8'); } catch (e) { console.log(JSON.stringify({ ok: false, error: `cannot read file: ${e.message}` })); process.exit(0); }
 
 try {
   const { model, issues } = A.analyze(text);
-  const cfg = { ...A.DEFAULTS, multiplier: opt('--multiplier', A.DEFAULTS.multiplier), eurPln: opt('--eur-pln', A.DEFAULTS.eurPln) };
+  const servers = A.DEFAULTS.servers.map(s => ({ ...s, k: kOverrides[s.name] || s.k }));
+  const cfg = { ...A.DEFAULTS, servers, multiplier: opt('--multiplier', A.DEFAULTS.multiplier), eurPln: opt('--eur-pln', A.DEFAULTS.eurPln) };
   const estimate = A.estimate(model, cfg);
   const advice = A.advise(model, cfg);
   // strip functions / heavy fields

@@ -8,7 +8,7 @@ from django.utils import timezone
 from apps.jobs.models import Job, log_event
 
 from . import hcloud_client
-from .models import SERVER_TYPES, Machine
+from .models import SERVER_TYPES, Machine, ServerCalibration
 
 log = logging.getLogger(__name__)
 
@@ -70,7 +70,19 @@ def finish_job(job_id, status, message=""):
             return
         job.set_status(status, message)
         log_event(job, "finished", f"{status}: {message}", actor="agent" if status == Job.Status.DONE else "system")
+    if status == Job.Status.DONE:
+        recalibrate(job)
     delete_machine.delay(job.id)
+
+
+def recalibrate(job):
+    """Feed the measured speed of this run back into the estimator."""
+    max_load = (job.analysis.get("model") or {}).get("maxLoad") or 0
+    if job.progress_step > 1000 and job.wall_seconds > 300 and max_load:
+        k = job.wall_seconds / (max_load * job.progress_step)
+        row = ServerCalibration.record(job.server_type, k)
+        if row:
+            log_event(job, "calibration", f"k={k:.3g} s/cell-step on {job.server_type}; running value {row.k:.3g} ({row.samples} samples)")
 
 
 @shared_task(bind=True, max_retries=10)
