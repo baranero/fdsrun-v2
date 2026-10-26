@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   smoke:
@@ -26,21 +27,31 @@ jobs:
       - name: Start the smoke job
         id: start
         run: |
-          out=$(python3 deploy/deployer-call.py ${{ steps.s.outputs.ip }} /_deploy/manage '{"args":["smoke_test","--server","${{ github.event.inputs.server }}"]}')
+          out=$(python3 deploy/deployer-call.py ${{ steps.s.outputs.ip }} /_deploy/manage '{"args":["smoke_test","--server","${{ github.event.inputs.server }}"]}' 2>&1 || true)
           echo "$out"
+          echo "$out" > /tmp/start.txt
           job=$(echo "$out" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['output'].strip().splitlines()[-1] if d['rc']==0 else '')")
           [ -n "$job" ] || { echo "::error::smoke_test failed"; exit 1; }
           echo "job=$job" >> "$GITHUB_OUTPUT"
       - name: Wait for the result (up to 25 min)
         run: |
+          : > /tmp/status.txt
           for i in $(seq 1 75); do
             st=$(python3 deploy/deployer-call.py ${{ steps.s.outputs.ip }} /_deploy/manage '{"args":["job_status","${{ steps.start.outputs.job }}"]}' | python3 -c "import json,sys; print(json.load(sys.stdin)['output'])")
             status=$(echo "$st" | python3 -c "import json,sys; print(json.load(sys.stdin)['status'])")
             echo "[$i] status=$status"
             case "$status" in
-              done) echo "$st"; echo "$st" >> "$GITHUB_STEP_SUMMARY"; exit 0;;
-              failed|stalled|cancelled) echo "$st"; echo "::error::job ended with $status"; exit 1;;
+              done) echo "$st" | tee /tmp/status.txt; exit 0;;
+              failed|stalled|cancelled) echo "$st" | tee /tmp/status.txt; echo "::error::job ended with $status"; exit 1;;
             esac
             sleep 20
           done
           echo "::error::timeout"; exit 1
+      - name: Report into the "Adresy środowisk" issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          num=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=adresy" --jq '.[0].number')
+          { echo "### Smoke test $(date -u +%Y-%m-%dT%H:%MZ) — ${{ job.status }}"; echo '```'; echo "start:"; cat /tmp/start.txt 2>/dev/null | head -c 3000; echo; echo "status:"; cat /tmp/status.txt 2>/dev/null | head -c 6000; echo '```'; } > /tmp/body.md
+          gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$num/comments" -F body=@/tmp/body.md >/dev/null
