@@ -12,6 +12,7 @@ permissions:
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}/portal
+  STAGING_DOMAIN: staging.fdsrun.com
 
 jobs:
   test:
@@ -79,6 +80,9 @@ jobs:
           ip=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers?name=fdsrun-staging" | python3 -c "import json,sys; s=json.load(sys.stdin)['servers']; print(s[0]['public_net']['ipv4']['ip'] if s else '')")
           echo "ip=$ip" >> "$GITHUB_OUTPUT"
           if [ -z "$ip" ]; then echo "::notice::No staging server yet — run the Provision workflow first."; fi
+          # use the real domain only once DNS points at this server
+          dns=$(getent ahostsv4 "$STAGING_DOMAIN" | awk '{print $1; exit}' || true)
+          if [ -n "$ip" ] && [ "$dns" = "$ip" ]; then echo "domain=$STAGING_DOMAIN" >> "$GITHUB_OUTPUT"; echo "DNS ok: $STAGING_DOMAIN -> $ip"; else echo "domain=" >> "$GITHUB_OUTPUT"; echo "DNS for $STAGING_DOMAIN resolves to '$dns', server is '$ip' — using sslip.io"; fi
       - name: Push the update to the deployer
         if: steps.server.outputs.ip != ''
         env:
@@ -87,17 +91,21 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REGISTRY_USER: ${{ github.actor }}
           SERVER_IP: ${{ steps.server.outputs.ip }}
-          PORTAL_DOMAIN: ${{ vars.STAGING_DOMAIN || '' }}
+          PORTAL_DOMAIN: ${{ steps.server.outputs.domain }}
         run: python3 deploy/push-update.py
       - name: Record the address in the "Adresy środowisk" issue
         if: steps.server.outputs.ip != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IP: ${{ steps.server.outputs.ip }}
-          DOMAIN: ${{ vars.STAGING_DOMAIN || '' }}
+          DOMAIN: ${{ steps.server.outputs.domain }}
           IMAGE_TAG: ${{ needs.build.outputs.tag }}
         run: |
           url="https://${DOMAIN:-$IP.sslip.io}"
+          if [ -n "$DOMAIN" ]; then
+            for i in $(seq 1 30); do code=$(curl -s -o /dev/null -w "%{http_code}" "$url/healthz" || true); [ "$code" = "200" ] && break; sleep 10; done
+            echo "health on $url: HTTP $code"; [ "$code" = "200" ] || url="$url (certyfikat jeszcze w drodze, HTTP $code)"
+          fi
           body="**Staging**: $url  (IP $IP, obraz \`$IMAGE_TAG\`, wdrożono $(date -u +%Y-%m-%dT%H:%MZ))"
           num=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=adresy" --jq '.[0].number' 2>/dev/null || true)
           if [ -z "$num" ] || [ "$num" = "null" ]; then

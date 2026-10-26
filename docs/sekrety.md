@@ -13,11 +13,9 @@ Ja ich nie widzę; używają ich tylko workflow na GitHubie i serwer.
 | `ING_API_KEY` | ING Księgowość → Dane i ustawienia → Integracje → Klucz API | etap 3 |
 | `EMAIL_API_KEY` | dostawca poczty (podam, który) | etap 2 |
 
-## Zmienne (zakładka *Variables*)
+## Domena
 
-| Nazwa | Wartość | Kiedy |
-| --- | --- | --- |
-| `STAGING_DOMAIN` | `staging.fdsrun.com` — ustaw dopiero, gdy rekord DNS wskazuje na serwer | po etapie 0 |
+Wdrożenie samo sprawdza, czy `staging.fdsrun.com` wskazuje na serwer (rekord A w DNS, u Vercela). Dopóki nie wskazuje, portal działa pod `https://<ip>.sslip.io`; gdy wskazuje, przepina się na domenę przy następnym wdrożeniu.
 
 ## Jak powstaje serwer
 
