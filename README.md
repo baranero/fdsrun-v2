@@ -10,15 +10,18 @@ Specyfikacja projektu: dokument „Portal obliczeń FDS – specyfikacja projekt
 - czyta grupy namelist (`&MESH`, `&TIME`, `&OBST`, `&SURF`, `&DEVC`, `&HVAC`…),
 - sprawdza typowe błędy: brak `&TAIL`, urządzenia poza siatkami, odwołania do niezdefiniowanych SURF/RAMP/DEVC, nachodzące siatki, złe proporcje komórek, kolejność `MPI_PROCESS`, temperatury przegród, brak `DT_RESTART`,
 - liczy obciążenie procesów MPI i doradza liczbę procesów oraz serwer,
-- szacuje czas i koszt: `czas = k × komórki_najwolniejszego_procesu × kroki`, gdzie `kroki = T_END × u / (0,9 × Δx_min)`, a `u` to prędkość z pióropusza pożaru i wymuszonych przepływów.
+- szacuje czas i koszt: `czas = k(serwer) × komórki_najwolniejszego_procesu × kroki`, gdzie `kroki = ∫u(t)dt / (0,9 × Δx_min)`.
+  Prędkość `u(t)` to największa z: pióropusz pożaru (wg RAMP_Q), efekt kominowy (&INIT vs TMPA), wentylacja mechaniczna (z chwilą włączenia wg DEVC), ruch resztkowy 2,2 m/s.
 
-Współczynnik `k = 2,1 µs` skalibrowano na 6 zleceniach klatek schodowych z września 2026 (błąd ±40%). Modele z HVAC/wentylacją strumieniową liczą się 2–10× dłużej — dla nich wycenę daje dopiero bieg testowy.
+Kalibracja na plikach .out z września 2026 (FDS 6.10.1): liczba kroków ±6% na klatkach, +3–4% na garażu;
+czas liczenia ±15%. `k` = 3,4 µs na cpx42 i 5,3 µs na cpx62. Wentylację mechaniczną skalibrowano na jednym garażu.
 
 ### Polecenia
 
-Pliki .fds i eksport CSV ze starego portalu trzymamy poza repozytorium (katalog `samples/`, ignorowany przez git).
+Pliki .fds, .out i eksport CSV ze starego portalu trzymamy poza repozytorium (katalogi `samples/` i `out/`, ignorowane przez git).
 
 ```bash
-node analyzer/calibrate.js samples               # porównanie szacunków z rzeczywistymi czasami
-node analyzer/build.js samples analyzer-fds.html # strona analizatora z wbudowanymi przykładami
+node analyzer/parse-out.js out                        # statystyki z plików .out
+node analyzer/calibrate.js samples out                # szacunek kontra rzeczywistość
+node analyzer/build.js samples analyzer-fds.html out  # strona analizatora z wbudowanymi przykładami
 ```

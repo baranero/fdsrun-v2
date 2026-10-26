@@ -284,7 +284,7 @@
     if (!dtRestart) add('info', 'NO_RESTART', 'Brak DT_RESTART w &DUMP. Dodanie np. DT_RESTART=300 pozwala wznowić obliczenia po awarii serwera zamiast liczyć od zera.');
 
     // ----- characteristic velocity (drives the time step) -----
-    const vel = estimateVelocity(by, meshes, issues);
+    const vel = flowModel(by, meshes, simTime, tmpa);
 
     // ----- slice output volume -----
     const sliceBytes = estimateSliceBytes(by('SLCF'), meshes, simTime, dtSlcf);
@@ -298,60 +298,137 @@
     return { model, issues };
   }
 
-  // Characteristic velocity [m/s]: max of fire-plume velocity and forced flows.
-  function estimateVelocity(by, meshes, issues) {
+  // Time-dependent characteristic velocity u(t) [m/s] that sets the FDS time
+  // step (dt ≈ 0.9·Δx/u). Calibrated on Sep 2026 .out files (FDS 6.10.1):
+  //   stairwells — fire plume, stack effect, residual floor of 2.2 m/s;
+  //   car park   — mechanical supply/exhaust raised u to ~4.5× the vent velocity.
+  const FLOW = { floor: 2.2, stackCd: 0.8, plumeC: 1.9, ventFactor: 4.5, hvacFactor: 1.9, samples: 200 };
+
+  function flowModel(by, meshes, simTime, tmpa) {
     const surfs = new Map(by('SURF').map(g => [str(g.p, 'ID', ''), g]));
     const ramps = new Map();
     by('RAMP').forEach(g => {
       const id = str(g.p, 'ID', '');
       if (!ramps.has(id)) ramps.set(id, []);
-      ramps.get(id).push(num(g.p, 'F', 0));
+      ramps.get(id).push({ t: num(g.p, 'T', 0), f: num(g.p, 'F', 0) });
     });
-    const rampMax = id => (ramps.has(id) ? Math.max(...ramps.get(id)) : 1);
-    const area = (b, faceTop) => {
-      const ex = Math.abs(b[1] - b[0]), ey = Math.abs(b[3] - b[2]), ez = Math.abs(b[5] - b[4]);
-      if (faceTop) return ex * ey;
-      const dims = [ex, ey, ez].sort((a, c) => c - a);
-      return dims[0] * dims[1];
+    ramps.forEach(r => r.sort((a, b) => a.t - b.t));
+    const rampAt = (id, t) => {
+      const r = ramps.get(id);
+      if (!r || !r.length) return 1;
+      if (t <= r[0].t) return r[0].f;
+      for (let i = 1; i < r.length; i++) if (t <= r[i].t) { const a = r[i - 1], b = r[i]; return a.f + (b.f - a.f) * (t - a.t) / ((b.t - a.t) || 1); }
+      return r[r.length - 1].f;
     };
-
-    let fireQ = 0, forced = 0, sources = [];
-    const consider = (surfId, a, label) => {
-      const s = surfs.get(surfId);
-      if (!s) return;
-      const hrrpua = num(s.p, 'HRRPUA', 0);
-      if (hrrpua > 0) {
-        const q = hrrpua * a * rampMax(str(s.p, 'RAMP_Q', ''));
-        fireQ += q;
-        sources.push({ label, q });
-      }
-      const v = Math.abs(num(s.p, 'VEL', 0));
-      if (v) forced = Math.max(forced, v);
-      const vf = Math.abs(num(s.p, 'VOLUME_FLOW', 0));
-      if (vf && a > 0) forced = Math.max(forced, vf / a);
+    const devcs = new Map(by('DEVC').map(g => [str(g.p, 'ID', ''), g]));
+    // returns a function t -> active? for an object controlled by DEVC_ID / CTRL_ID
+    const activeFn = p => {
+      const d = devcs.get(str(p, 'DEVC_ID', ''));
+      if (!d) return () => true;
+      if (str(d.p, 'QUANTITY', '') !== 'TIME') return () => true; // detector-driven: assume on (conservative)
+      const sp = num(d.p, 'SETPOINT', 0), init = first(d.p, 'INITIAL_STATE', false) === true;
+      return t => (init ? t < sp : t >= sp);
     };
-    by('VENT').forEach(g => { const b = xb(g.p); if (b) consider(str(g.p, 'SURF_ID', ''), area(b, false), str(g.p, 'ID', 'VENT')); });
-    by('OBST').forEach(g => {
+    const faceArea = b => { const e = [Math.abs(b[1] - b[0]), Math.abs(b[3] - b[2]), Math.abs(b[5] - b[4])].sort((a, c) => c - a); return e[0] * e[1]; };
+    const meshAt = pt => meshes.find(m => inBox(pt, m.xb));
+    // area of a vent as FDS rasterises it (circular vents: count cell faces inside RADIUS)
+    const ventArea = g => {
       const b = xb(g.p);
-      if (!b) return;
-      if (g.p.SURF_IDS) consider(g.p.SURF_IDS[0], area(b, true), str(g.p, 'ID', 'OBST'));
-      else consider(str(g.p, 'SURF_ID', ''), area(b, true), str(g.p, 'ID', 'OBST'));
+      if (!b) return 0;
+      const r = num(g.p, 'RADIUS', 0);
+      const c = g.p.XYZ && g.p.XYZ.length >= 3 ? g.p.XYZ : [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2];
+      const m = meshAt(c);
+      if (!r || !m) return faceArea(b);
+      const axis = [0, 1, 2].find(k => Math.abs(b[2 * k + 1] - b[2 * k]) < 1e-9);
+      const ax = [0, 1, 2].filter(k => k !== axis);
+      const d = [m.dx, m.dy, m.dz];
+      let n = 0;
+      for (let i = 0; i < m.ijk[ax[0]]; i++) {
+        const u = m.xb[2 * ax[0]] + (i + 0.5) * d[ax[0]];
+        if (Math.abs(u - c[ax[0]]) > r) continue;
+        for (let j = 0; j < m.ijk[ax[1]]; j++) {
+          const v = m.xb[2 * ax[1]] + (j + 0.5) * d[ax[1]];
+          if ((u - c[ax[0]]) ** 2 + (v - c[ax[1]]) ** 2 <= r * r) n++;
+        }
+      }
+      return Math.max(1, n) * d[ax[0]] * d[ax[1]];
+    };
+
+    // fire sources
+    const fires = [];
+    const addFire = (surfId, a, label) => {
+      const s = surfs.get(surfId);
+      const q = s ? num(s.p, 'HRRPUA', 0) : 0;
+      if (q > 0) fires.push({ label, q: q * a, ramp: str(s.p, 'RAMP_Q', '') });
+    };
+    by('VENT').forEach(g => { const b = xb(g.p); if (b) addFire(str(g.p, 'SURF_ID', ''), faceArea(b), str(g.p, 'ID', 'VENT')); });
+    by('OBST').forEach(g => { const b = xb(g.p); if (b) addFire((g.p.SURF_IDS || g.p.SURF_ID || [''])[0], Math.abs(b[1] - b[0]) * Math.abs(b[3] - b[2]), str(g.p, 'ID', 'OBST')); });
+    const qAt = t => fires.reduce((m, f) => Math.max(m, f.q * rampAt(f.ramp, t)), 0);
+    const largest = fires.reduce((m, f) => Math.max(m, f.q * (ramps.has(f.ramp) ? Math.max(...ramps.get(f.ramp).map(x => x.f)) : 1)), 0);
+
+    // forced flows: vents with VEL / VOLUME_FLOW, and HVAC fans
+    const forced = [];
+    by('VENT').forEach(g => {
+      const s = surfs.get(str(g.p, 'SURF_ID', ''));
+      if (!s) return;
+      const a = ventArea(g);
+      const v = Math.max(Math.abs(num(s.p, 'VEL', 0)), a > 0 ? Math.abs(num(s.p, 'VOLUME_FLOW', 0)) / a : 0);
+      if (v > 0) forced.push({ label: str(g.p, 'ID', 'VENT'), v, u: v * FLOW.ventFactor, on: activeFn(g.p) });
     });
-    // HVAC fans: volume flow over the area of their vents
-    const ventArea = new Map(by('VENT').map(g => [str(g.p, 'ID', ''), xb(g.p) ? area(xb(g.p), false) : 0]));
-    const fans = new Map(by('HVAC').filter(g => /FAN/i.test(str(g.p, 'TYPE_ID', ''))).map(g => [str(g.p, 'ID', ''), num(g.p, 'VOLUME_FLOW', 0)]));
-    by('HVAC').filter(g => /NODE/i.test(str(g.p, 'TYPE_ID', ''))).forEach(g => {
-      const a = ventArea.get(str(g.p, 'VENT_ID', '')) || 0;
-      const duct = by('HVAC').find(d => str(d.p, 'ID', '') === str(g.p, 'DUCT_ID', ''));
-      const fan = duct ? fans.get(str(duct.p, 'FAN_ID', '')) : 0;
-      if (fan && a > 0) forced = Math.max(forced, Math.abs(fan) / a);
+    const hv = by('HVAC');
+    const hvId = new Map(hv.map(g => [str(g.p, 'ID', ''), g]));
+    const ventById = new Map(by('VENT').map(g => [str(g.p, 'ID', ''), g]));
+    hv.filter(g => /DUCT/i.test(str(g.p, 'TYPE_ID', ''))).forEach(duct => {
+      const fan = hvId.get(str(duct.p, 'FAN_ID', ''));
+      const vf = fan ? Math.abs(num(fan.p, 'VOLUME_FLOW', 0)) : Math.abs(num(duct.p, 'VOLUME_FLOW', 0));
+      if (!vf) return;
+      (duct.p.NODE_ID || []).forEach(nid => {
+        const node = hvId.get(nid);
+        const vent = node && ventById.get(str(node.p, 'VENT_ID', ''));
+        if (!vent) return;
+        const v = vf / (ventArea(vent) || 1);
+        forced.push({ label: str(duct.p, 'ID', 'HVAC'), v, u: v * FLOW.hvacFactor, on: activeFn(duct.p) });
+      });
     });
 
-    // McCaffrey-like centreline plume velocity ~ 1.9 Q^(1/5), Q in kW
-    const largest = sources.reduce((m, s) => Math.max(m, s.q), 0);
-    const plume = largest > 0 ? 1.9 * Math.pow(largest, 0.2) : 0;
-    const u = Math.max(plume, forced, 1.0);
-    return { u: round(u, 2), plume: round(plume, 2), forced: round(forced, 2), fireQ: Math.round(fireQ), largestFire: Math.round(largest) };
+    // stack effect from &INIT regions warmer or colder than outside
+    let uStack = 0;
+    by('INIT').forEach(g => {
+      const t = num(g.p, 'TEMPERATURE', null), b = xb(g.p);
+      if (t === null || !b) return;
+      const h = Math.abs(b[5] - b[4]), dT = Math.abs(t - tmpa);
+      uStack = Math.max(uStack, FLOW.stackCd * Math.sqrt(2 * 9.81 * h * dT / (tmpa + 273.15)));
+    });
+
+    const uAt = t => {
+      const q = qAt(t);
+      const parts = {
+        floor: FLOW.floor,
+        stack: uStack,
+        fire: q > 0 ? FLOW.plumeC * Math.pow(q, 0.2) : 0,
+        forced: forced.reduce((m, x) => (x.on(t) ? Math.max(m, x.u) : m), 0),
+      };
+      const key = Object.keys(parts).reduce((a, b) => (parts[b] > parts[a] ? b : a));
+      return { u: parts[key], key };
+    };
+    const n = FLOW.samples, T = Math.max(simTime, 1e-9);
+    let integral = 0, uMax = 0;
+    const share = { floor: 0, stack: 0, fire: 0, forced: 0 };
+    for (let i = 0; i < n; i++) { const { u, key } = uAt((i + 0.5) * T / n); integral += u * T / n; share[key] += u * T / n; uMax = Math.max(uMax, u); }
+    const driver = Object.keys(share).reduce((a, b) => (share[b] > share[a] ? b : a));
+    const topForced = forced.reduce((a, b) => (a && a.v >= b.v ? a : b), null);
+    return {
+      u: round(integral / T, 2),          // time-averaged
+      uMax: round(uMax, 2),
+      plume: round(largest > 0 ? FLOW.plumeC * Math.pow(largest, 0.2) : 0, 2),
+      stack: round(uStack, 2),
+      forced: topForced ? round(topForced.v, 2) : 0,
+      forcedLabel: topForced ? topForced.label : null,
+      hasForced: forced.length > 0,
+      largestFire: Math.round(largest),
+      driver,                             // what limits the time step most of the run
+      integral,                           // ∫u dt [m]
+    };
   }
 
   // Slice file size: cells in each slice plane × frames × 4 bytes (×3 for vectors)
@@ -388,12 +465,13 @@
   // Default calibration (see calibrate.js): seconds of wall time per
   // (cell of the busiest process × time step), and server price list.
   const DEFAULTS = {
-    kSecPerCellStep: 2.1e-6,   // median of 6 stairwell runs on cpx42 (Sep 2026)
     cfl: 0.9,
+    // k = wall seconds per (cell on the busiest process × time step), from .out files
+    // (FDS 6.10.1, one MPI process per vCPU). cpx32 not measured yet: assumed as cpx42.
     servers: [                 // effective rates from the old portal's Hetzner costs
-      { name: 'cpx32', vcpu: 4, eurPerHour: 0.055 },
-      { name: 'cpx42', vcpu: 8, eurPerHour: 0.111 },
-      { name: 'cpx62', vcpu: 16, eurPerHour: 0.208 },
+      { name: 'cpx32', vcpu: 4, eurPerHour: 0.055, k: 3.4e-6 },
+      { name: 'cpx42', vcpu: 8, eurPerHour: 0.111, k: 3.4e-6 },
+      { name: 'cpx62', vcpu: 16, eurPerHour: 0.208, k: 5.3e-6 },
     ],
     eurPln: 4.25,
     multiplier: 2.0,
@@ -411,22 +489,25 @@
   }
 
   function steps(model, cfg) {
-    return model.simTime * model.velocity.u / (cfg.cfl * model.dxMin);
+    return model.velocity.integral / (cfg.cfl * model.dxMin);
   }
 
   // How much to trust a file-only estimate. Calibration: stairwells within
   // -30%/+60%; car-park models with jet fans/HVAC ran 2-10x longer than estimated.
+  // How much to trust a file-only estimate. Sep 2026 check: stairwells within
+  // ±15% of real time; the one car-park geometry within ±10% after calibration,
+  // but forced ventilation is calibrated on a single geometry so its range stays wide.
   function confidence(model) {
-    const complex = model.counts.hvac > 0 || model.velocity.forced > 3 || model.meshes.length > 20;
-    return complex
-      ? { level: 'low', low: 0.8, high: 10, note: 'Model z wentylacją mechaniczną, HVAC lub wieloma siatkami — czas liczenia potrafi być kilka razy dłuższy niż wynika z pliku. Dokładny czas poda dopiero bieg testowy.' }
-      : { level: 'ok', low: 0.7, high: 1.6, note: 'Szacunek z pliku; bieg testowy zawęzi go do ok. ±15%.' };
+    if (model.velocity.hasForced) return { level: 'medium', low: 0.6, high: 1.8, note: 'Model z wentylacją mechaniczną. Szacunek opiera się na jednym skalibrowanym garażu, więc rzeczywisty czas może różnić się nawet o połowę. Portal przelicza czas na bieżąco w trakcie obliczeń.' };
+    return { level: 'ok', low: 0.8, high: 1.25, note: 'Na Twoich klatkach schodowych szacunek trafiał w rzeczywisty czas z dokładnością ±15%.' };
   }
 
-  function estimate(model, cfg = DEFAULTS, maxLoad = model.maxLoad) {
+  const serverFor = (cfg, procs) => cfg.servers.find(s => s.vcpu >= procs) || cfg.servers[cfg.servers.length - 1];
+
+  function estimate(model, cfg = DEFAULTS, maxLoad = model.maxLoad, server = serverFor(cfg, model.nProc)) {
     const s = steps(model, cfg);
-    const sec = cfg.kSecPerCellStep * maxLoad * s;
-    return { hours: sec / 3600, steps: Math.round(s), confidence: confidence(model) };
+    const sec = server.k * maxLoad * s;
+    return { hours: sec / 3600, steps: Math.round(s), server: server.name, confidence: confidence(model) };
   }
 
   function advise(model, cfg = DEFAULTS) {
@@ -437,7 +518,7 @@
       const load = k === model.nProc && model.hasMpi ? model.maxLoad : partition(cells, k);
       const server = cfg.servers.find(s => s.vcpu >= k);
       if (!server) continue;
-      const { hours } = estimate(model, cfg, load);
+      const { hours } = estimate(model, cfg, load, server);
       const cost = hours * server.eurPerHour;
       options.push({ procs: k, load, server: server.name, vcpu: server.vcpu, hours, costEur: cost, pricePln: cost * cfg.eurPln * cfg.multiplier });
     }

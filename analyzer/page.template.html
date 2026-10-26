@@ -39,13 +39,15 @@ input[type=number] { width: 80px; font-family: var(--f-mono); }
 .drop { flex: 1 1 220px; min-width: 0; color: var(--muted); font-size: 13px; }
 .drop.over { color: var(--accent); }
 .note { font-size: 13px; color: var(--muted); }
-.strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .stat { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
 .stat .k { font-size: 12px; color: var(--muted); }
 .stat .v { font: 600 22px var(--f-display); font-variant-numeric: tabular-nums; }
 .stat .s { font: 12px var(--f-mono); color: var(--muted); }
 .stat.key .v { color: var(--accent); }
-section { display: grid; gap: 12px; }
+section { display: grid; gap: 12px; align-content: start; }
+@media (max-width: 640px) { .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.fname { max-width: 30ch; overflow: hidden; text-overflow: ellipsis; }
 .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }
 th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
@@ -121,7 +123,7 @@ tr.pick td { background: var(--accent-soft); }
 
   <section>
     <h2>Wycena kontra rzeczywistość</h2>
-    <p class="note">Twoje zlecenia ze starego portalu (wrzesień 2026). Czas rzeczywisty liczony od utworzenia do zakończenia zlecenia.</p>
+    <p class="note">Twoje zlecenia ze starego portalu (wrzesień 2026), FDS 6.10.1.</p>
     <div class="table-scroll"><table id="calib"></table></div>
     <p class="note" id="calibnote"></p>
   </section>
@@ -138,6 +140,7 @@ const pln = v => v.toLocaleString('pl-PL', { maximumFractionDigits: 0 }) + ' zł
 const eur = v => v.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 const gb = b => b >= 1e9 ? (b / 1e9).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + ' GB' : Math.round(b / 1e6) + ' MB';
 const LEVEL = { error: 'błąd', warn: 'uwaga', info: 'info' };
+const DRIVER = { fire: 'pióropusz pożaru', stack: 'efekt kominowy', forced: 'wentylacja mechaniczna', floor: 'ruch resztkowy powietrza' };
 let current = null;
 
 Object.keys(SAMPLES).forEach(name => { const o = document.createElement('option'); o.value = name; o.textContent = name; $('sample').appendChild(o); });
@@ -153,20 +156,20 @@ function render() {
   const cfg = { ...A.DEFAULTS, multiplier: Number($('mult').value) || 2 };
   const est = A.estimate(m, cfg);
   const adv = A.advise(m, cfg);
-  const pick = adv.cheapest && adv.fastest && adv.fastest.hours < adv.cheapest.hours * 0.7 ? adv.fastest : (adv.cheapest || adv.current);
+  // recommend the cheapest option that is at most 30% slower than the fastest one
+  const pick = adv.best.filter(o => o.hours <= adv.fastest.hours * 1.3).reduce((a, b) => (a && a.costEur <= b.costEur ? a : b), null) || adv.current;
   const c = est.confidence;
   const lo = pick ? pick.hours * c.low : 0, hi = pick ? pick.hours * c.high : 0;
-  const errs = issues.filter(i => i.level === 'error').length;
 
   $('strip').innerHTML = [
     ['Komórki', A.fmtInt(m.totalCells), `${m.meshes.length} siatek · Δx min ${m.dxMin.toFixed(3)} m`],
     ['Symulacja', `${m.simTime} s`, `ok. ${A.fmtInt(est.steps)} kroków czasowych`],
+    ['Średni krok czasowy', `${(m.simTime / est.steps * 1000).toLocaleString('pl-PL', { maximumFractionDigits: 1 })} ms`, `wyznacza go: ${DRIVER[m.velocity.driver]}`],
     ['Procesy w pliku', m.nProc, `wykorzystanie ${Math.round(m.balance * 100)}%`],
     ['Czas liczenia', pick ? A.fmtHours(pick.hours) : '—', pick ? `${A.fmtHours(lo)} – ${A.fmtHours(hi)} · ${pick.server}` : '', true],
     ['Koszt serwera', pick ? eur(pick.costEur) : '—', pick ? `≈ ${pln(pick.costEur * cfg.eurPln)}` : ''],
     ['Cena dla klienta', pick ? pln(pick.pricePln) : '—', `mnożnik ×${cfg.multiplier}`, true],
     ['Przekroje (slice)', gb(m.sliceBytes), `${m.counts.slcf} definicji SLCF`],
-    ['Plik', errs ? `${errs} błęd${errs === 1 ? 'y' : 'ów'}` : 'gotowy', `${issues.length} uwag łącznie`],
   ].map(([k, v, s, key]) => `<div class="stat${key ? ' key' : ''}"><span class="k">${k}</span><span class="v">${esc(v)}</span><span class="s">${esc(s)}</span></div>`).join('');
 
   $('opts').innerHTML = `<tr><th>Serwer</th><th class="num">Procesy</th><th class="num">Czas</th><th class="num">Koszt</th><th class="num">Cena</th></tr>` +
@@ -185,10 +188,10 @@ function render() {
 }
 
 function renderCalib() {
-  const pct = (a, b) => { const d = Math.round((a / b - 1) * 100); return `<span class="diff ${Math.abs(d) <= 40 ? 'down' : 'up'}">${d > 0 ? '+' : ''}${d}%</span>`; };
-  $('calib').innerHTML = `<tr><th>Plik</th><th>Serwer</th><th class="num">Rzeczywisty</th><th class="num">Stary szacunek</th><th class="num">Błąd</th><th class="num">Nowy szacunek</th><th class="num">Błąd</th></tr>` +
-    CALIB.map(r => `<tr><td>${esc(r.file)}</td><td>${r.server}</td><td class="num">${A.fmtHours(r.real)}</td><td class="num">${A.fmtHours(r.old)}</td><td class="num">${pct(r.old, r.real)}</td><td class="num">${A.fmtHours(r.est)}</td><td class="num">${pct(r.est, r.real)}</td></tr>`).join('');
-  $('calibnote').textContent = 'Klatki schodowe: nowy szacunek mieści się w ±40%. Garaże z wentylacją strumieniową liczyły się 2–10 razy dłużej niż wynika z pliku, a trzy prawie identyczne modele trwały od 11 do 54 godzin. Takich różnic nie widać w pliku .fds, dlatego przed startem potrzebny jest krótki bieg testowy.';
+  const pct = (a, b) => { const d = Math.round((a / b - 1) * 100); return `<span class="diff ${Math.abs(d) <= 15 ? 'down' : 'up'}">${d > 0 ? '+' : ''}${d}%</span>`; };
+  $('calib').innerHTML = `<tr><th>Plik</th><th>Serwer</th><th class="num">Policzono</th><th class="num">Kroki rzecz.</th><th class="num">Szacunek</th><th class="num">Czas rzecz.</th><th class="num">Nowy szacunek</th><th class="num">Błąd</th><th class="num">Stary szacunek</th></tr>` +
+    CALIB.map(r => `<tr><td class="fname" title="${esc(r.file)}">${esc(r.file)}</td><td>${r.server}</td><td class="num">${r.complete ? 'całość' : `${Math.round(r.tReached)} z ${r.tEnd} s`}</td><td class="num">${A.fmtInt(r.steps)}</td><td class="num">${A.fmtInt(r.estSteps)}</td><td class="num">${A.fmtHours(r.realH)}</td><td class="num">${A.fmtHours(r.estH)}</td><td class="num">${pct(r.estH, r.realH)}</td><td class="num">${r.complete && r.oldEstH ? A.fmtHours(r.oldEstH) : '—'}</td></tr>`).join('');
+  $('calibnote').textContent = 'Dane z plików .out: rzeczywista liczba kroków czasowych i czas samego liczenia. Dwa zlecenia zatrzymano ręcznie przed końcem, więc porównuję je do momentu zatrzymania. Garaże liczą się długo, bo wentylacja mechaniczna od 60. sekundy skraca krok czasowy do ok. 4 ms, czyli 220 tys. kroków na 1000 s symulacji.';
 }
 
 $('sample').addEventListener('change', e => run(e.target.value, SAMPLES[e.target.value]));
