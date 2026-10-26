@@ -195,10 +195,19 @@ def main():
         uploader = Uploader(portal, exclude=[fds_file, "fds_stdout.log"])
         last_upload = time.time()
         stop_sent_at = None
+        paused = False
         while proc.poll() is None:
             time.sleep(HEARTBEAT_S)
             st = last_step(out_path) or {}
-            action = progress("running", out_tail=tail(out_path, 40), log_tail=tail(os.path.join(WORK, "fds_stdout.log"), 20), **st)
+            action = progress("paused" if paused else "running", out_tail=tail(out_path, 40), log_tail=tail(os.path.join(WORK, "fds_stdout.log"), 20), **st)
+            if action == "pause" and not paused:
+                log("portal asked to pause (cost cap)")
+                run(["docker", "pause", "fds"], capture_output=True)
+                paused = True
+            elif action != "pause" and paused:
+                log("resuming")
+                run(["docker", "unpause", "fds"], capture_output=True)
+                paused = False
             if action == "stop" and stop_sent_at is None:
                 log("stop requested: writing stop file")
                 open(os.path.join(WORK, f"{chid}.stop"), "w").close()

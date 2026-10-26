@@ -118,6 +118,13 @@ def watchdog():
         limit = timeout * (3 if job.status == Job.Status.PROVISIONING else 1)
         if now - last > limit:
             finish_job.delay(job.id, Job.Status.STALLED, "Maszyna przestała odpowiadać; wyniki do ostatniego zapisu są dostępne")
+    # paused for over an hour without a decision: stop gracefully (machine costs money while paused)
+    for job in Job.objects.filter(paused_at__lt=now - timezone.timedelta(hours=1), budget_confirmed=False, stop_requested=False):
+        job.stop_requested = True
+        job.status_message = "Brak decyzji przez godzinę — obliczenia zatrzymane, wyniki do tej chwili zapisane"
+        job.save(update_fields=["stop_requested", "status_message"])
+        log_event(job, "budget_timeout")
+        stop_job.delay(job.id)
     # retry machines that failed to delete
     for m in Machine.objects.filter(status=Machine.Status.LOST):
         delete_machine.delay(m.job_id)

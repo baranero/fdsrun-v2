@@ -3,6 +3,9 @@
   <div class="actions">
     <span class="pill {{ job.status }}">{{ job.get_status_display }}</span>
     {% if job.status_message %}<span class="muted">{{ job.status_message }}</span>{% endif %}
+    {% if job.is_paused %}
+      <form method="post" action="{% url 'jobs:continue' job.public_id %}" class="inline">{% csrf_token %}<button class="btn primary" type="submit">Kontynuuj za ok. {{ job.projected_price_pln|floatformat:0 }} zł</button></form>
+    {% endif %}
     {% if job.is_active and not job.stop_requested %}
       <form method="post" action="{% url 'jobs:stop' job.public_id %}" class="inline">{% csrf_token %}<button class="btn secondary" type="submit">Zatrzymaj</button></form>
     {% endif %}

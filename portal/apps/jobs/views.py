@@ -127,6 +127,19 @@ def job_stop(request, public_id):
 
 
 @login_required
+@require_POST
+def job_continue(request, public_id):
+    job = _own_job(request, public_id)
+    if job.is_paused:
+        job.budget_confirmed = True
+        job.paused_at = None
+        job.status_message = "Obliczenia wznowione"
+        job.save(update_fields=["budget_confirmed", "paused_at", "status_message"])
+        log_event(job, "budget_confirmed", f"{job.projected_hours or 0:.2f} h", actor=request.user.email)
+    return redirect("jobs:detail", public_id=public_id)
+
+
+@login_required
 def job_file(request, public_id, name):
     job = _own_job(request, public_id)
     path = (job.results_dir / name).resolve()

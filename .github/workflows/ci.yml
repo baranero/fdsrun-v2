@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   packages: write
+  actions: write
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}/portal
@@ -88,3 +89,14 @@ jobs:
           SERVER_IP: ${{ steps.server.outputs.ip }}
           PORTAL_DOMAIN: ${{ vars.STAGING_DOMAIN || '' }}
         run: python3 deploy/push-update.py
+      - name: Record the address in repository variables (STAGING_IP, STAGING_URL)
+        if: steps.server.outputs.ip != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IP: ${{ steps.server.outputs.ip }}
+          DOMAIN: ${{ vars.STAGING_DOMAIN || '' }}
+        run: |
+          set_var() { gh api -X PATCH "repos/$GITHUB_REPOSITORY/actions/variables/$1" -f name="$1" -f value="$2" >/dev/null 2>&1 || gh api -X POST "repos/$GITHUB_REPOSITORY/actions/variables" -f name="$1" -f value="$2" >/dev/null; }
+          set_var STAGING_IP "$IP"
+          set_var STAGING_URL "https://${DOMAIN:-$IP.sslip.io}"
+          echo "STAGING_URL=https://${DOMAIN:-$IP.sslip.io}" >> "$GITHUB_STEP_SUMMARY"

@@ -65,6 +65,10 @@ class Job(models.Model):
 
     agent_token = models.CharField(max_length=64, default=new_token, editable=False)
     stop_requested = models.BooleanField(default=False)
+    # cost cap: when the projected time exceeds the estimate by 30%, the run pauses until the user confirms
+    budget_confirmed = models.BooleanField(default=False)
+    paused_at = models.DateTimeField(null=True, blank=True)
+    projected_hours = models.FloatField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)
@@ -108,6 +112,16 @@ class Job(models.Model):
     @property
     def is_active(self):
         return self.status in self.ACTIVE
+
+    @property
+    def is_paused(self):
+        return self.paused_at is not None
+
+    @property
+    def projected_price_pln(self):
+        if not self.projected_hours or not self.est_hours:
+            return self.est_price_pln
+        return self.est_price_pln * self.projected_hours / self.est_hours
 
     @property
     def progress_pct(self):

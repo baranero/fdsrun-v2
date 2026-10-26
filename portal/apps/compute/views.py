@@ -20,6 +20,9 @@ from . import tasks
 
 SAFE_NAME = re.compile(r"^[A-Za-z0-9_.\-]{1,200}$")
 TEST_WINDOW_S = 120
+BUDGET_FACTOR = 1.3          # pause when projected time > estimate × 1.3
+BUDGET_MIN_WALL_S = 300      # ...but only after 5 minutes and 10% of the simulation
+BUDGET_MIN_PROGRESS = 0.10
 
 
 def agent_auth(view):
@@ -82,6 +85,14 @@ def job_progress(request, job):
             job.status_message = "Bieg testowy" if job.status == Job.Status.TESTING else "Obliczenia w toku"
         if job.progress_t > 0 and job.wall_seconds > 30:
             job.eta_hours = (job.sim_time - job.progress_t) * (job.wall_seconds / job.progress_t) / 3600
+            job.projected_hours = job.wall_seconds / 3600 + job.eta_hours
+            over = job.est_hours and job.projected_hours > job.est_hours * BUDGET_FACTOR
+            if over and not job.budget_confirmed and not job.paused_at and job.wall_seconds > BUDGET_MIN_WALL_S and job.progress_t > BUDGET_MIN_PROGRESS * job.sim_time:
+                job.paused_at = timezone.now()
+                job.status_message = f"Wstrzymane: obliczenia potrwają ok. {job.projected_hours:.1f} h zamiast {job.est_hours:.1f} h. Potwierdź, że chcesz kontynuować."
+                log_event(job, "budget_pause", f"projected {job.projected_hours:.2f} h vs est {job.est_hours:.2f} h")
+    elif phase == "paused":
+        pass
     elif phase == "finishing":
         job.status, job.status_message = Job.Status.FINISHING, data.get("message", "Zapisuję wyniki")
     if "out_tail" in data:
@@ -89,7 +100,13 @@ def job_progress(request, job):
     if "log_tail" in data:
         job.log_tail = str(data["log_tail"])[-20000:]
     job.save()
-    return JsonResponse({"action": "stop" if job.stop_requested else "continue"})
+    if job.stop_requested:
+        action = "stop"
+    elif job.paused_at and not job.budget_confirmed:
+        action = "pause"
+    else:
+        action = "continue"
+    return JsonResponse({"action": action})
 
 
 @require_POST
