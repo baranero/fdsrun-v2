@@ -16,6 +16,7 @@
     {% if user.is_authenticated %}
       <a href="{% url 'jobs:list' %}">Zlecenia</a>
       <a href="{% url 'jobs:new' %}">Nowe zlecenie</a>
+      <a href="{% url 'accounts:two_factor_setup' %}">Konto</a>
       {% if user.is_staff %}<a href="{% url 'admin:index' %}">Admin</a>{% endif %}
       <form method="post" action="{% url 'accounts:logout' %}" class="inline">{% csrf_token %}<button class="link" type="submit">Wyloguj ({{ user.email }})</button></form>
     {% else %}

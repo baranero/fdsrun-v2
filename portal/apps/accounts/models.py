@@ -38,6 +38,8 @@ class User(AbstractUser):
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.COMPANY)
     language = models.CharField(max_length=2, default="pl")
     email_confirmed = models.BooleanField(default=False)
+    totp_secret = models.CharField(max_length=64, blank=True)  # set = 2FA enabled
+    totp_backup = models.CharField(max_length=200, blank=True, help_text="hashed one-time backup codes, comma separated")
     trusted = models.BooleanField(default=False, help_text="Zaufana firma: pobieranie w trakcie i faktura zbiorcza")
     per_job_limit_pln = models.DecimalField(max_digits=9, decimal_places=2, default=300)
 
@@ -47,3 +49,7 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+    @property
+    def two_factor_enabled(self):
+        return bool(self.totp_secret)

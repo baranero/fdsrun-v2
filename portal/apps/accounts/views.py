@@ -8,8 +8,74 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
+from django.contrib.auth import authenticate
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import LoginView as DjangoLoginView
+from django.views.decorators.http import require_http_methods
+
+from . import twofactor
 from .forms import RegisterForm
 from .models import User
+
+
+class LoginView(DjangoLoginView):
+    """Password first; if the account has 2FA, hold the session until the code is right."""
+
+    template_name = "accounts/login.html"
+
+    def form_valid(self, form):
+        user = form.get_user()
+        if user.two_factor_enabled:
+            self.request.session["pre_2fa_user"] = user.pk
+            self.request.session["pre_2fa_next"] = self.get_success_url()
+            return redirect("accounts:two_factor_check")
+        return super().form_valid(form)
+
+
+@require_http_methods(["GET", "POST"])
+def two_factor_check(request):
+    uid = request.session.get("pre_2fa_user")
+    if not uid:
+        return redirect("accounts:login")
+    user = User.objects.filter(pk=uid).first()
+    error = ""
+    if request.method == "POST" and user:
+        code = request.POST.get("code", "")
+        if twofactor.verify(user.totp_secret, code) or twofactor.use_backup_code(user, code):
+            nxt = request.session.pop("pre_2fa_next", None) or reverse("jobs:list")
+            request.session.pop("pre_2fa_user", None)
+            login(request, user)
+            return redirect(nxt)
+        error = "Nieprawidłowy kod. Sprawdź czas w telefonie i spróbuj ponownie."
+    return render(request, "accounts/two_factor_check.html", {"error": error})
+
+
+@login_required
+def two_factor_setup(request):
+    user = request.user
+    if request.method == "POST" and request.POST.get("action") == "disable":
+        if authenticate(request, username=user.email, password=request.POST.get("password", "")):
+            user.totp_secret, user.totp_backup = "", ""
+            user.save(update_fields=["totp_secret", "totp_backup"])
+            messages.info(request, "Logowanie dwuetapowe wyłączone.")
+        else:
+            messages.error(request, "Błędne hasło.")
+        return redirect("accounts:two_factor_setup")
+    if user.two_factor_enabled:
+        return render(request, "accounts/two_factor_setup.html", {"enabled": True})
+    secret = request.session.get("totp_setup_secret") or twofactor.new_secret()
+    request.session["totp_setup_secret"] = secret
+    ctx = {"enabled": False, "secret": secret, "qr": twofactor.qr_svg_data_uri(twofactor.provisioning_uri(user, secret))}
+    if request.method == "POST":
+        if twofactor.verify(secret, request.POST.get("code", "")):
+            codes = twofactor.make_backup_codes()
+            user.totp_secret = secret
+            user.totp_backup = ",".join(twofactor.hash_code(c) for c in codes)
+            user.save(update_fields=["totp_secret", "totp_backup"])
+            request.session.pop("totp_setup_secret", None)
+            return render(request, "accounts/two_factor_setup.html", {"enabled": True, "backup_codes": codes})
+        ctx["error"] = "Kod się nie zgadza. Zeskanuj kod QR jeszcze raz i wpisz aktualny kod z aplikacji."
+    return render(request, "accounts/two_factor_setup.html", ctx)
 
 
 def register(request):

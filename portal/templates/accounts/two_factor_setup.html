@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Logowanie dwuetapowe · fdsrun{% endblock %}
+{% block content %}
+<section class="card" style="max-width:560px">
+<h1>Logowanie dwuetapowe</h1>
+{% if backup_codes %}
+  <p><strong>Włączone.</strong> Zapisz kody zapasowe — każdy działa raz, gdy nie masz dostępu do aplikacji:</p>
+  <pre class="log">{% for c in backup_codes %}{{ c }}
+{% endfor %}</pre>
+{% elif enabled %}
+  <p>Logowanie dwuetapowe jest <strong>włączone</strong>. Przy każdym logowaniu portal poprosi o kod z aplikacji.</p>
+  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="disable"><p><label for="id_password">Hasło (żeby wyłączyć)</label><input type="password" name="password" id="id_password"></p><button class="btn secondary" type="submit">Wyłącz</button></form>
+{% else %}
+  <p class="muted">Zeskanuj kod aplikacją (Google Authenticator, Microsoft Authenticator, Aegis, 1Password) i wpisz kod, który pokaże.</p>
+  <p><img src="{{ qr }}" alt="kod QR" width="220" height="220" style="background:#fff;border-radius:8px"></p>
+  <p class="muted mono">Ręcznie: {{ secret }}</p>
+  {% if error %}<ul class="errorlist"><li>{{ error }}</li></ul>{% endif %}
+  <form method="post">{% csrf_token %}<p><label for="id_code">Kod z aplikacji</label><input type="text" name="code" id="id_code" inputmode="numeric" autocomplete="one-time-code" required></p><button class="btn primary" type="submit">Włącz</button></form>
+{% endif %}
+</section>
+{% endblock %}

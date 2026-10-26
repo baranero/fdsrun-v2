@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Kod weryfikacyjny · fdsrun{% endblock %}
+{% block content %}
+<section class="card" style="max-width:480px"><h1>Kod z aplikacji</h1>
+<p class="muted">Wpisz 6-cyfrowy kod z aplikacji uwierzytelniającej albo jeden z kodów zapasowych.</p>
+{% if error %}<ul class="errorlist"><li>{{ error }}</li></ul>{% endif %}
+<form method="post">{% csrf_token %}<p><label for="id_code">Kod</label><input type="text" name="code" id="id_code" inputmode="numeric" autocomplete="one-time-code" autofocus required></p><button class="btn primary" type="submit">Zaloguj</button></form></section>
+{% endblock %}

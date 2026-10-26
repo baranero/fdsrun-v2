@@ -27,7 +27,7 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 
 ## Etap 2 — konta i zlecenia
 - [x] Reset hasła, potwierdzenie e-maila (wymagane przed startem obliczeń)
-- [ ] 2FA (aplikacja)
+- [x] 2FA (aplikacja TOTP, kody zapasowe)
 - [x] Wykresy HRR/DEVC na żywo z plików CSV
 - [ ] Obrazki przekrojów (slice)
 - [x] Poczta: SMTP przez Brevo (klucze do wpisania w GitHub — docs/sekrety.md); do tego czasu maile idą do logu

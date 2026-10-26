@@ -200,3 +200,32 @@ class AccountTests(TestCase):
         self.client.post(reverse("accounts:password_reset"), {"email": "x@example.com"})
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("/konto/haslo/", mail.outbox[0].body)
+
+
+class TwoFactorTests(TestCase):
+    def test_setup_and_login_with_code(self):
+        import pyotp
+
+        from apps.accounts import twofactor
+
+        user = User.objects.create_user("tf@example.com", "haslo-bardzo-tajne", email_confirmed=True)
+        self.client.login(username="tf@example.com", password="haslo-bardzo-tajne")
+        page = self.client.get(reverse("accounts:two_factor_setup"))
+        self.assertContains(page, "data:image/svg+xml")
+        secret = self.client.session["totp_setup_secret"]
+        self.assertContains(self.client.post(reverse("accounts:two_factor_setup"), {"code": "000000"}), "nie zgadza")
+        resp = self.client.post(reverse("accounts:two_factor_setup"), {"code": pyotp.TOTP(secret).now()})
+        self.assertContains(resp, "kody zapasowe")
+        user.refresh_from_db()
+        self.assertTrue(user.two_factor_enabled)
+        self.client.logout()
+        # password alone is not enough any more
+        resp = self.client.post(reverse("accounts:login"), {"username": "tf@example.com", "password": "haslo-bardzo-tajne"})
+        self.assertRedirects(resp, reverse("accounts:two_factor_check"))
+        self.assertEqual(self.client.get(reverse("jobs:list")).status_code, 302)
+        resp = self.client.post(reverse("accounts:two_factor_check"), {"code": "123456"})
+        self.assertContains(resp, "Nieprawidłowy")
+        resp = self.client.post(reverse("accounts:two_factor_check"), {"code": pyotp.TOTP(secret).now()})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.client.get(reverse("jobs:list")).status_code, 200)
+        self.assertTrue(twofactor.verify(secret, pyotp.TOTP(secret).now()))
