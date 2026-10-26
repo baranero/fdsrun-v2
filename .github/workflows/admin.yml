@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       command:
-        description: "promote_admin --email x@y | job_status ID | showmigrations"
+        description: "status | promote_admin --email x@y | job_status ID | jobs_list | showmigrations"
         required: true
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   run:
@@ -20,6 +21,17 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           ip=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers?name=fdsrun-staging" | python3 -c "import json,sys; print(json.load(sys.stdin)['servers'][0]['public_net']['ipv4']['ip'])")
-          args=$(python3 -c "import json,shlex; print(json.dumps(shlex.split('${{ github.event.inputs.command }}')))")
-          python3 deploy/deployer-call.py "$ip" /_deploy/manage "{\"args\":$args}" | tee out.json
-          python3 -c "import json; d=json.load(open('out.json')); print(d['output']); raise SystemExit(d['rc'])"
+          cmd='${{ github.event.inputs.command }}'
+          if [ "$cmd" = "status" ]; then
+            python3 deploy/deployer-call.py "$ip" /_deploy/status '{}' > out.json || true
+            python3 -c "import json; d=json.load(open('out.json')); print(d['ps']); print(d['logs'])" > out.txt
+          else
+            args=$(python3 -c "import json,shlex; print(json.dumps(shlex.split('$cmd')))")
+            python3 deploy/deployer-call.py "$ip" /_deploy/manage "{\"args\":$args}" > out.json || true
+            python3 -c "import json; d=json.load(open('out.json')); print(d['output'])" > out.txt
+          fi
+          cat out.txt
+          GH_TOKEN=${{ secrets.GITHUB_TOKEN }}; export GH_TOKEN
+          num=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=adresy" --jq '.[0].number')
+          { echo "### Admin: \`$cmd\` $(date -u +%Y-%m-%dT%H:%MZ)"; echo '```'; tail -c 12000 out.txt; echo '```'; } > body.md
+          gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$num/comments" -F body=@body.md >/dev/null

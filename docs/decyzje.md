@@ -4,6 +4,8 @@ Decyzje podjęte w trakcie budowy, od najnowszej. Decyzje klienta z planu wdroż
 
 ## 2026-10-26 — Etap 0
 
+**D-8. Przekroczenie wyceny nie zatrzymuje obliczeń.** Decyzja klienta: gdy prognoza przekracza wycenę o ponad 30%, portal tylko informuje w statusie zlecenia; obliczenia biegną dalej, a cena rośnie proporcjonalnie. Mechanizm pauzy zostaje w kodzie wyłączony.
+
 **D-7. Wdrażanie bez SSH: „deployer” na serwerze przyjmuje podpisane aktualizacje z GitHub Actions.**
 Warsztat, w którym piszę kod, nie ma dostępu do Hetznera, a klucz SSH wymagałby kolejnego sekretu. Zamiast tego na serwerze działa mały serwis (`deploy/deployer/deployer.py`), do którego GitHub Actions wysyła przez HTTPS podpisany pakiet: nazwę obrazu, pliki `compose.yml` i `Caddyfile`, tymczasowy token do rejestru obrazów. Podpis to HMAC z klucza wyprowadzonego z `HCLOUD_TOKEN`, który obie strony i tak znają. Żądania starsze niż 5 minut są odrzucane. Na serwerze nie ma w ogóle otwartego portu SSH (firewall: tylko 80 i 443).
 

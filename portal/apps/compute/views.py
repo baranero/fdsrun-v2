@@ -87,10 +87,11 @@ def job_progress(request, job):
             job.eta_hours = (job.sim_time - job.progress_t) * (job.wall_seconds / job.progress_t) / 3600
             job.projected_hours = job.wall_seconds / 3600 + job.eta_hours
             over = job.est_hours and job.projected_hours > job.est_hours * BUDGET_FACTOR
-            if over and not job.budget_confirmed and not job.paused_at and job.wall_seconds > BUDGET_MIN_WALL_S and job.progress_t > BUDGET_MIN_PROGRESS * job.sim_time:
-                job.paused_at = timezone.now()
-                job.status_message = f"Wstrzymane: obliczenia potrwają ok. {job.projected_hours:.1f} h zamiast {job.est_hours:.1f} h. Potwierdź, że chcesz kontynuować."
-                log_event(job, "budget_pause", f"projected {job.projected_hours:.2f} h vs est {job.est_hours:.2f} h")
+            if over and not job.budget_confirmed and job.wall_seconds > BUDGET_MIN_WALL_S and job.progress_t > BUDGET_MIN_PROGRESS * job.sim_time:
+                # Client's decision (26.10): never stop a run over cost — only tell the user.
+                job.budget_confirmed = True
+                job.status_message = f"Uwaga: obliczenia potrwają ok. {job.projected_hours:.1f} h zamiast szacowanych {job.est_hours:.1f} h; cena wzrośnie proporcjonalnie."
+                log_event(job, "budget_notice", f"projected {job.projected_hours:.2f} h vs est {job.est_hours:.2f} h")
     elif phase == "paused":
         pass
     elif phase == "finishing":
