@@ -8,5 +8,9 @@ body = json.dumps(payload).encode()
 key = hashlib.sha256(f"fdsrun-deployer:{os.environ['HCLOUD_TOKEN']}".encode()).hexdigest().encode()
 sig = hmac.new(key, body, hashlib.sha256).hexdigest()
 req = urllib.request.Request(f"https://{ip}.sslip.io{path}", data=body, headers={"Content-Type": "application/json", "X-Signature": sig}, method="POST")
-with urllib.request.urlopen(req, timeout=900) as r:
-    print(r.read().decode())
+try:
+    with urllib.request.urlopen(req, timeout=900) as r:
+        print(r.read().decode())
+except urllib.error.HTTPError as e:
+    print(json.dumps({"rc": 1, "output": f"deployer HTTP {e.code}: {e.read().decode()[:500]}"}))
+    sys.exit(1)

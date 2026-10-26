@@ -104,7 +104,8 @@ class Handler(BaseHTTPRequestHandler):
             if data is None:
                 return
             args = [str(a) for a in data.get("args") or []]
-            if not args or args[0] not in ALLOWED_MANAGE or any(a.startswith("-") and a not in ("--email", "--noinput") for a in args):
+            import re
+            if not args or args[0] not in ALLOWED_MANAGE or any(a.startswith("-") and not re.fullmatch(r"--[a-z][a-z-]*", a) for a in args):
                 self._reply(400, {"error": "command not allowed"})
                 return
             rc, out = compose("exec", "-T", "web", "python", "manage.py", *args, timeout=600)
