@@ -28,7 +28,12 @@ UPLOAD_EVERY_S = 60
 SMALL_FILE_LIMIT = 64 * 1024 * 1024
 STOP_GRACE_S = 300
 
-STEP_RE = re.compile(r"Time Step:?\s+(\d+),?\s+(?:Simulation Time|.*?Total Time):\s+([\d.]+)\s*s,?\s+Step Size:\s+([\d.E+-]+)\s*s", re.S)
+# two .out formats: verbose blocks ("Time Step  N  <date>\n Step Size: X s, Total Time: T s")
+# and compact lines ("Time Step: N, Simulation Time: T s, Step Size: X s")
+STEP_RES = [
+    re.compile(r"Time Step\s+(\d+)\s+\w+ \d+, \d{4}\s+[\d:]+\s+Step Size:\s+([\d.E+-]+)\s*s,\s+Total Time:\s+([\d.]+)\s*s", re.S),
+    re.compile(r"Time Step:\s+(\d+),\s+Simulation Time:\s+([\d.]+)\s*s,\s+Step Size:\s+([\d.E+-]+)\s*s"),
+]
 
 
 def log(msg):
@@ -110,14 +115,19 @@ def tail(path, n=60):
         return ""
 
 
+def parse_last_step(text):
+    best = None
+    for i, rx in enumerate(STEP_RES):
+        for m in rx.finditer(text):
+            step = int(m.group(1))
+            if best is None or step > best["step"]:
+                dt, t = (m.group(2), m.group(3)) if i == 0 else (m.group(3), m.group(2))
+                best = {"step": step, "t": float(t), "dt": float(dt)}
+    return best
+
+
 def last_step(out_path):
-    text = tail(out_path, 400)
-    m = None
-    for m in STEP_RE.finditer(text):
-        pass
-    if not m:
-        return None
-    return {"step": int(m.group(1)), "t": float(m.group(2)), "dt": float(m.group(3))}
+    return parse_last_step(tail(out_path, 400))
 
 
 def run(cmd, **kw):

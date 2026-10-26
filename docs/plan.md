@@ -10,9 +10,9 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 - [x] Obraz portalu, compose, Caddy, deployer, cloud-init serwera
 - [x] Workflow CI → build → deploy-staging
 - [x] Workflow provision (tworzy serwer portalu z firewallem)
-- [ ] Serwer staging utworzony, deployer odpowiada
-- [ ] Pierwsze wdrożenie przeszło, https://<ip>.sslip.io/healthz = ok
-- [ ] Bramka: mały model testowy policzony na maszynie obliczeniowej od A do Z
+- [x] Serwer staging utworzony, deployer odpowiada (adres w issue „Adresy środowisk”)
+- [x] Pierwsze wdrożenie przeszło, /healthz = ok
+- [x] Bramka: mały model testowy policzony na maszynie obliczeniowej od A do Z (workflow *Smoke test*, 26.10, 1 min 43 s, 0,002 €)
 
 ## Etap 1 — silnik obliczeń
 - [x] Tworzenie maszyny przez API Hetzner, cloud-init z agentem
@@ -20,8 +20,9 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 - [x] Zatrzymanie przez użytkownika (plik CHID.stop, limit 5 min)
 - [x] Watchdog: brak sygnału → zlecenie „brak odpowiedzi”, maszyna usunięta; zapomniane maszyny usuwane
 - [ ] Alarm e-mail/SMS do admina o zapomnianej maszynie (po etapie 2, gdy będzie poczta)
-- [ ] Pauza i potwierdzenie przy przekroczeniu wyceny o 30%
-- [ ] Przeliczanie szacunku z rzeczywistego tempa (ETA już jest; kalibracja współczynnika k z każdego zlecenia)
+- [x] Pauza i potwierdzenie przy przekroczeniu wyceny o 30% (po godzinie bez decyzji — zatrzymanie)
+- [x] Przeliczanie szacunku z rzeczywistego tempa (ETA) i kalibracja k z każdego zakończonego zlecenia
+- [ ] Konto admina klienta (po rejestracji: workflow *Admin command* → `promote_admin --email …`)
 - [ ] Bramka: klatkaD liczy się od wysłania pliku do pobrania wyników
 
 ## Etap 2 — konta i zlecenia
