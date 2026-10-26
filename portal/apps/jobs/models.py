@@ -96,6 +96,11 @@ class Job(models.Model):
         return self.dir / "input" / self.filename
 
     @property
+    def run_path(self) -> Path:
+        """The file actually sent to the machine: input with MPI_PROCESS assigned for job.procs."""
+        return self.dir / "run" / self.filename
+
+    @property
     def results_dir(self) -> Path:
         return self.dir / "results"
 

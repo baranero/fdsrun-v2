@@ -90,6 +90,9 @@ class JobFlowTests(TestCase):
         job.refresh_from_db()
         self.assertEqual(job.status, Job.Status.PROVISIONING)
         create_server.assert_called_once()
+        run_text = job.run_path.read_text()
+        self.assertEqual(run_text.count("MPI_PROCESS="), 2)
+        self.assertIn(f"MPI_PROCESS={opt['procs'] - 1}", run_text)
         machine = Machine.objects.get(job=job)
         self.assertEqual(machine.hcloud_id, 4242)
 

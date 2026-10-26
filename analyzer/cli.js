@@ -15,6 +15,17 @@ args.forEach((a, i) => { if (a === '--k' && args[i + 1] && args[i + 1].includes(
 let text;
 try { text = fs.readFileSync(file, 'utf8'); } catch (e) { console.log(JSON.stringify({ ok: false, error: `cannot read file: ${e.message}` })); process.exit(0); }
 
+// --assign N --out path: write a copy of the file prepared for N MPI processes, print a summary
+if (args.includes('--assign')) {
+  const k = opt('--assign', 1);
+  const outPath = args[args.indexOf('--out') + 1];
+  const result = A.assignProcesses(text, k);
+  fs.writeFileSync(outPath, result);
+  const m = A.analyze(result).model;
+  console.log(JSON.stringify({ ok: true, procs: m.nProc, maxLoad: m.maxLoad, balance: m.balance }));
+  process.exit(0);
+}
+
 try {
   const { model, issues } = A.analyze(text);
   const servers = A.DEFAULTS.servers.map(s => ({ ...s, k: kOverrides[s.name] || s.k }));

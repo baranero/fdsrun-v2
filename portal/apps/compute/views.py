@@ -59,7 +59,8 @@ def job_spec(request, job):
 @require_GET
 @agent_auth
 def job_input(request, job):
-    return FileResponse(open(job.input_path, "rb"), as_attachment=True, filename=job.filename)
+    path = job.run_path if job.run_path.exists() else job.input_path
+    return FileResponse(open(path, "rb"), as_attachment=True, filename=job.filename)
 
 
 @require_POST

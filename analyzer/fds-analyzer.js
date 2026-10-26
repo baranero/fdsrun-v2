@@ -32,7 +32,7 @@
           else if (ch === '/') break;
           k++;
         }
-        out.push({ name, body: text.slice(j, k), line: startLine, closed: k < n });
+        out.push({ name, body: text.slice(j, k), line: startLine, closed: k < n, start: i, end: Math.min(n, k + 1) });
         i = k + 1;
         continue;
       }
@@ -477,15 +477,56 @@
     multiplier: 2.0,
   };
 
-  // Longest-processing-time partition of meshes into k processes
-  function partition(meshCells, k) {
+  // Longest-processing-time partition of meshes into k processes.
+  // Returns the heaviest bin; partitionAssign returns the bin index of every mesh.
+  function partitionAssign(meshCells, k) {
     const bins = Array(k).fill(0);
-    [...meshCells].sort((a, b) => b - a).forEach(c => {
+    const assign = Array(meshCells.length).fill(0);
+    meshCells.map((c, i) => [c, i]).sort((a, b) => b[0] - a[0]).forEach(([c, idx]) => {
       let i = 0;
       for (let j = 1; j < k; j++) if (bins[j] < bins[i]) i = j;
       bins[i] += c;
+      assign[idx] = i;
     });
-    return Math.max(...bins);
+    return { assign, bins };
+  }
+  function partition(meshCells, k) {
+    return Math.max(...partitionAssign(meshCells, k).bins);
+  }
+
+  // Rewrite the file so that its meshes run on exactly k MPI processes:
+  // every &MESH gets MPI_PROCESS=n, meshes are grouped by process (FDS requires
+  // non-decreasing process numbers in mesh order). Nothing else in the file changes.
+  function assignProcesses(text, k) {
+    const groups = splitNamelists(text).filter(g => g.name === 'MESH');
+    if (!groups.length) return text;
+    const cells = groups.map(g => { const p = parseParams(g.body); const ijk = p.IJK || [1, 1, 1]; return Number(ijk[0]) * Number(ijk[1]) * Number(ijk[2]); });
+    k = Math.max(1, Math.min(k, groups.length));
+    // the author already laid out exactly k processes: respect that layout
+    const own = groups.map(g => { const p = parseParams(g.body); return p.MPI_PROCESS !== undefined ? Number(p.MPI_PROCESS[0]) : null; });
+    if (own.every(v => v !== null) && new Set(own).size === k && Math.max(...own) === k - 1) return text;
+    const { assign } = partitionAssign(cells, k);
+    // renumber bins in order of first appearance so the file reads naturally
+    const order = [...new Set(assign.slice().sort((a, b) => a - b))];
+    const renum = new Map(order.map((b, i) => [b, i]));
+    const items = groups.map((g, i) => ({ g, proc: renum.get(assign[i]), i }));
+    items.sort((a, b) => a.proc - b.proc || a.i - b.i);
+    const rewritten = items.map(({ g, proc }) => {
+      let body = g.body.replace(/,?\s*MPI_PROCESS\s*=\s*\d+/i, '');
+      body = body.replace(/\s*$/, '') + `, MPI_PROCESS=${proc}`;
+      return '&MESH' + body + '/';
+    });
+    // splice: drop every original mesh, put the new block where the first one was
+    let out = '', pos = 0;
+    groups.forEach((g, i) => {
+      out += text.slice(pos, g.start);
+      if (i === 0) out += rewritten.join('\n');
+      pos = g.end;
+      // swallow the line break that followed a removed mesh so the file stays tidy
+      if (i > 0) { if (text[pos] === '\r') pos++; if (text[pos] === '\n') pos++; }
+    });
+    out += text.slice(pos);
+    return out;
   }
 
   function steps(model, cfg) {
@@ -563,7 +604,7 @@
   function uniq(a) { return [...new Set(a)]; }
   function sortDesc(a) { return [...a].sort((x, y) => y - x); }
 
-  const api = { parse, analyze, estimate, advise, partition, DEFAULTS, fmtInt, fmtHours };
+  const api = { parse, analyze, estimate, advise, partition, partitionAssign, assignProcesses, DEFAULTS, fmtInt, fmtHours };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FDSAnalyzer = api;
 })(typeof window !== 'undefined' ? window : globalThis);

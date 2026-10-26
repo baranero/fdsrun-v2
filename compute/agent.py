@@ -242,8 +242,9 @@ def main():
         elif stopped:
             status, message = "stopped", "Obliczenia zatrzymane"
         else:
-            err = [l for l in tail(out_path, 60).splitlines() if "ERROR" in l or "error" in l.lower()]
-            message = (err[-1].strip() if err else f"FDS zakończył się kodem {rc}")[:500]
+            lines = tail(os.path.join(WORK, "fds_stdout.log"), 80).splitlines() + tail(out_path, 80).splitlines()
+            err = [l.strip() for l in lines if re.match(r"\s*ERROR", l)]
+            message = (err[0] if err else f"FDS zakończył się bez wyniku (kod {rc})")[:500]
             status = "failed"
         portal.json("finish", {"status": status, "message": message, "wall_s": time.time() - started})
         log(f"finished: {status} {message}")

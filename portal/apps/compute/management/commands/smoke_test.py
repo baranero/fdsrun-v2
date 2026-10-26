@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand
 
 from apps.accounts.models import User
 from apps.compute import tasks
-from apps.jobs.analyzer import analyze_file
+from apps.jobs.analyzer import analyze_file, prepare_run_file
 from apps.jobs.models import Job, log_event
 from apps.jobs.views import _apply_analysis
 
@@ -30,6 +30,7 @@ class Command(BaseCommand):
         opt = next(o for o in job.analysis["advice"]["options"] if o["server"] == opts["server"])
         job.procs, job.server_type = opt["procs"], opt["server"]
         job.est_hours, job.est_cost_eur, job.est_price_pln = opt["hours"], opt["costEur"], opt["pricePln"]
+        prepare_run_file(job.input_path, job.run_path, job.procs)
         job.set_status(Job.Status.QUEUED, "smoke test")
         log_event(job, "start", "smoke test", actor="system")
         tasks.launch_job.delay(job.id)

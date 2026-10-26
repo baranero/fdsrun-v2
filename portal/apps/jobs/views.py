@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 
 from apps.compute import tasks as compute_tasks
 
-from .analyzer import AnalyzerError, analyze_file, multiplier_for
+from .analyzer import AnalyzerError, analyze_file, multiplier_for, prepare_run_file
 from .forms import StartForm, UploadForm
 from .models import Job, log_event
 
@@ -106,6 +106,12 @@ def job_start(request, public_id):
         return redirect("jobs:detail", public_id=public_id)
     job.procs, job.server_type = opt["procs"], opt["server"]
     job.est_hours, job.est_cost_eur, job.est_price_pln = opt["hours"], opt["costEur"], opt["pricePln"]
+    try:
+        info = prepare_run_file(job.input_path, job.run_path, job.procs)
+    except AnalyzerError as e:
+        messages.error(request, str(e))
+        return redirect("jobs:detail", public_id=public_id)
+    log_event(job, "run_file", f"MPI_PROCESS assigned for {info['procs']} processes, busiest {info['maxLoad']} cells", actor="system")
     job.started_at = timezone.now()
     job.set_status(Job.Status.QUEUED, "Czeka na maszynę")
     log_event(job, "start", f"{job.procs} proc, {job.server_type}, est {job.est_hours:.1f} h", actor=request.user.email)
