@@ -1,0 +1,46 @@
+name: Smoke test (real FDS run on staging)
+
+on:
+  workflow_dispatch:
+    inputs:
+      server:
+        description: "compute server type"
+        default: cpx32
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find staging
+        id: s
+        run: |
+          ip=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers?name=fdsrun-staging" | python3 -c "import json,sys; print(json.load(sys.stdin)['servers'][0]['public_net']['ipv4']['ip'])")
+          echo "ip=$ip" >> "$GITHUB_OUTPUT"
+      - name: Start the smoke job
+        id: start
+        run: |
+          out=$(python3 deploy/deployer-call.py ${{ steps.s.outputs.ip }} /_deploy/manage '{"args":["smoke_test","--server","${{ github.event.inputs.server }}"]}')
+          echo "$out"
+          job=$(echo "$out" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['output'].strip().splitlines()[-1] if d['rc']==0 else '')")
+          [ -n "$job" ] || { echo "::error::smoke_test failed"; exit 1; }
+          echo "job=$job" >> "$GITHUB_OUTPUT"
+      - name: Wait for the result (up to 25 min)
+        run: |
+          for i in $(seq 1 75); do
+            st=$(python3 deploy/deployer-call.py ${{ steps.s.outputs.ip }} /_deploy/manage '{"args":["job_status","${{ steps.start.outputs.job }}"]}' | python3 -c "import json,sys; print(json.load(sys.stdin)['output'])")
+            status=$(echo "$st" | python3 -c "import json,sys; print(json.load(sys.stdin)['status'])")
+            echo "[$i] status=$status"
+            case "$status" in
+              done) echo "$st"; echo "$st" >> "$GITHUB_STEP_SUMMARY"; exit 0;;
+              failed|stalled|cancelled) echo "$st"; echo "::error::job ended with $status"; exit 1;;
+            esac
+            sleep 20
+          done
+          echo "::error::timeout"; exit 1

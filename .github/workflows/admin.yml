@@ -1,0 +1,25 @@
+name: Admin command on staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "promote_admin --email x@y | job_status ID | showmigrations"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          ip=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers?name=fdsrun-staging" | python3 -c "import json,sys; print(json.load(sys.stdin)['servers'][0]['public_net']['ipv4']['ip'])")
+          args=$(python3 -c "import json,shlex; print(json.dumps(shlex.split('${{ github.event.inputs.command }}')))")
+          python3 deploy/deployer-call.py "$ip" /_deploy/manage "{\"args\":$args}" | tee out.json
+          python3 -c "import json; d=json.load(open('out.json')); print(d['output']); raise SystemExit(d['rc'])"

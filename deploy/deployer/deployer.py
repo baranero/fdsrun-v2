@@ -10,6 +10,7 @@ can trigger an update. Requests older than 5 minutes are rejected.
 Endpoints (behind Caddy at https://<domain>/_deploy/...):
   POST /_deploy/update   {ts, image, registry_user, registry_token, files:{name:text}, env:{KEY:VAL}}
   POST /_deploy/status   {ts}   -> compose ps + recent logs
+  POST /_deploy/manage   {ts, args:[...]} -> runs an allow-listed manage.py command in the web container
 """
 
 import hashlib
@@ -25,6 +26,7 @@ ENV_FILE = os.path.join(STACK_DIR, ".env")
 ALLOWED_FILES = {"compose.yml", "Caddyfile"}
 ALLOWED_ENV = {"IMAGE", "PORTAL_DOMAINS", "PORTAL_URL", "COMPUTE_IMAGE", "FDSRUN_ENV", "HCLOUD_LOCATION"}
 MAX_SKEW_S = 300
+ALLOWED_MANAGE = {"smoke_test", "job_status", "promote_admin", "migrate", "showmigrations"}
 
 
 def read_env():
@@ -96,6 +98,17 @@ class Handler(BaseHTTPRequestHandler):
             _, ps = compose("ps", "--format", "table {{.Service}}\t{{.Status}}\t{{.Image}}")
             _, logs = compose("logs", "--tail", "80", "web", "worker", "caddy", timeout=60)
             self._reply(200, {"ps": ps, "logs": logs, "env": {k: v for k, v in read_env().items() if k in ALLOWED_ENV}})
+            return
+        if self.path == "/_deploy/manage":
+            data = self._verify()
+            if data is None:
+                return
+            args = [str(a) for a in data.get("args") or []]
+            if not args or args[0] not in ALLOWED_MANAGE or any(a.startswith("-") and a not in ("--email", "--noinput") for a in args):
+                self._reply(400, {"error": "command not allowed"})
+                return
+            rc, out = compose("exec", "-T", "web", "python", "manage.py", *args, timeout=600)
+            self._reply(200, {"rc": rc, "output": out})
             return
         if self.path != "/_deploy/update":
             self._reply(404, {"error": "unknown endpoint"})
