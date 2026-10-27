@@ -24,7 +24,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 STACK_DIR = "/opt/fdsrun"
 ENV_FILE = os.path.join(STACK_DIR, ".env")
 ALLOWED_FILES = {"compose.yml", "Caddyfile", "deployer.py"}
-ALLOWED_ENV = {"IMAGE", "PORTAL_DOMAINS", "PORTAL_URL", "COMPUTE_IMAGE", "FDSRUN_ENV", "HCLOUD_LOCATION", "EMAIL_HOST", "EMAIL_PORT", "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "ADMIN_EMAIL", "COMPANY_NAME", "COMPANY_ADDRESS", "COMPANY_NIP", "COMPANY_EMAIL"}
+ALLOWED_ENV = {"IMAGE", "PORTAL_DOMAINS", "PORTAL_URL", "COMPUTE_IMAGE", "FDSRUN_ENV", "HCLOUD_LOCATION", "EMAIL_HOST", "EMAIL_PORT", "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "ADMIN_EMAIL", "COMPANY_NAME", "COMPANY_ADDRESS", "COMPANY_NIP", "COMPANY_EMAIL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "MS_CLIENT_ID", "MS_CLIENT_SECRET"}
+SECRET_ENV = {k for k in ALLOWED_ENV if k.endswith(("PASSWORD", "SECRET"))}
 MAX_SKEW_S = 300
 ALLOWED_MANAGE = {"smoke_test", "job_status", "job_log", "job_retry", "job_stop", "jobs_list", "promote_admin", "build_archives", "send_test_mail", "share_link", "migrate", "showmigrations"}
 
@@ -97,7 +98,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             _, ps = compose("ps", "--format", "table {{.Service}}\t{{.Status}}\t{{.Image}}")
             _, logs = compose("logs", "--tail", "80", "web", "worker", "caddy", timeout=60)
-            self._reply(200, {"ps": ps, "logs": logs, "env": {k: v for k, v in read_env().items() if k in ALLOWED_ENV}})
+            self._reply(200, {"ps": ps, "logs": logs, "env": {k: ("***" if k in SECRET_ENV else v) for k, v in read_env().items() if k in ALLOWED_ENV}})
             return
         if self.path == "/_deploy/manage":
             data = self._verify()

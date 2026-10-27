@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Logowanie nie powiodło się · fdsrun{% endblock %}
+{% block content %}
+<section class="auth">
+  <div><h1>Logowanie nie powiodło się</h1><p class="muted">Dostawca logowania odrzucił żądanie albo je przerwano. Spróbuj ponownie albo zaloguj się e-mailem i hasłem.</p></div>
+  <a class="btn primary" href="{% url 'accounts:login' %}">Wróć do logowania</a>
+</section>
+{% endblock %}

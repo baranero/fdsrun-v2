@@ -39,6 +39,7 @@
         <div class="menu-panel">
           <div class="who">{{ user.email }}</div>
           <a href="{% url 'accounts:two_factor_setup' %}">Bezpieczeństwo i 2FA</a>
+          <a href="{% url 'socialaccount_connections' %}">Połączone logowania</a>
           <a href="{% url 'accounts:password_reset' %}">Zmień hasło</a>
           {% if user.is_staff %}<div class="sep"></div><a href="{% url 'panel:dashboard' %}">Panel admina</a><a href="{% url 'admin:index' %}">Baza danych</a>{% endif %}
           <div class="sep"></div>

@@ -8,3 +8,4 @@ requests==2.34.2
 hcloud==2.27.0
 pyotp==2.10.0
 qrcode==8.2
+django-allauth[socialaccount]==65.21.0

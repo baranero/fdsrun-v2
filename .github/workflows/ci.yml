@@ -102,6 +102,12 @@ jobs:
           APP_COMPANY_ADDRESS: ${{ secrets.COMPANY_ADDRESS }}
           APP_COMPANY_NIP: ${{ secrets.COMPANY_NIP }}
           APP_COMPANY_EMAIL: ${{ secrets.COMPANY_EMAIL }}
+          APP_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          APP_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          APP_GITHUB_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+          APP_GITHUB_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+          APP_MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+          APP_MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
         run: python3 deploy/push-update.py
       - name: Record the address in the "Adresy środowisk" issue
         if: steps.server.outputs.ip != ''

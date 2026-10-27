@@ -27,6 +27,12 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_htmx",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.github",
+    "allauth.socialaccount.providers.microsoft",
     "apps.accounts",
     "apps.jobs",
     "apps.compute",
@@ -45,6 +51,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "fdsrun.urls"
@@ -182,3 +189,29 @@ COMPANY = {
     "phone": env("COMPANY_PHONE", "+48 790 782 993"),
     "www": env("COMPANY_WWW", "https://www.fp-solutions.pl/"),
 }
+
+
+# ----- social login (Google, GitHub, Microsoft) via django-allauth -----
+# Our own views handle e-mail/password login and registration; allauth only adds the
+# external providers. A provider appears on the login page only when its keys are set.
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*"]
+ACCOUNT_EMAIL_VERIFICATION = "none"  # our own confirmation flow covers e-mail/password accounts
+ACCOUNT_ADAPTER = "apps.accounts.adapters.AccountAdapter"
+SOCIALACCOUNT_ADAPTER = "apps.accounts.adapters.SocialAdapter"
+SOCIALACCOUNT_AUTO_SIGNUP = False      # first external login asks for the account type
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+SOCIALACCOUNT_LOGIN_ON_GET = False
+SOCIALACCOUNT_FORMS = {"signup": "apps.accounts.forms.SocialSignupForm"}
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {"APPS": [{"client_id": env("GOOGLE_CLIENT_ID", ""), "secret": env("GOOGLE_CLIENT_SECRET", "")}], "SCOPE": ["profile", "email"], "AUTH_PARAMS": {"prompt": "select_account"}},
+    "github": {"APPS": [{"client_id": env("GITHUB_CLIENT_ID", ""), "secret": env("GITHUB_CLIENT_SECRET", "")}], "SCOPE": ["user:email"]},
+    "microsoft": {"APPS": [{"client_id": env("MS_CLIENT_ID", ""), "secret": env("MS_CLIENT_SECRET", ""), "settings": {"tenant": "common"}}]},
+}
+SOCIAL_PROVIDERS_ENABLED = [name for name, cfg in SOCIALACCOUNT_PROVIDERS.items() if cfg["APPS"][0]["client_id"]]
+SOCIALACCOUNT_PROVIDERS = {name: cfg for name, cfg in SOCIALACCOUNT_PROVIDERS.items() if name in SOCIAL_PROVIDERS_ENABLED}

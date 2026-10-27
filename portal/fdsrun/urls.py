@@ -14,6 +14,7 @@ urlpatterns = [
     path("", TemplateView.as_view(template_name="home.html"), name="home"),
     path("healthz", health, name="health"),
     path("konto/", include("apps.accounts.urls")),
+    path("konto/zewnetrzne/", include("allauth.urls")),
     path("zlecenia/", include("apps.jobs.urls")),
     path("api/compute/", include("apps.compute.urls")),
     path("api/download/auth", downloads.download_auth, name="download_auth"),

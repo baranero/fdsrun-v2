@@ -9,3 +9,17 @@ class RegisterForm(UserCreationForm):
         model = User
         fields = ("email", "kind")
         labels = {"email": "E-mail", "kind": "Rodzaj konta"}
+
+
+class SocialSignupForm(forms.Form):
+    """Shown once, on the first login through Google/GitHub/Microsoft: pick the account type."""
+
+    kind = forms.ChoiceField(label="Rodzaj konta", choices=User.Kind.choices, initial=User.Kind.COMPANY, widget=forms.RadioSelect)
+
+    def __init__(self, *args, **kwargs):
+        self.sociallogin = kwargs.pop("sociallogin", None)
+        super().__init__(*args, **kwargs)
+
+    def signup(self, request, user):
+        user.kind = self.cleaned_data["kind"]
+        user.save(update_fields=["kind"])

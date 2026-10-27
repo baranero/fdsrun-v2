@@ -3,7 +3,9 @@
 {% block content %}
 <section class="auth">
   <div><h1>Zaloguj się</h1><p class="muted">Obliczenia FDS w chmurze. Płatność po wynikach.</p></div>
-  <form method="post">{% csrf_token %}
+  {% include "socialaccount/_buttons.html" %}
+  {% if social_providers %}<div class="or">albo e-mailem</div>{% endif %}
+  <form method="post" action="{% url 'accounts:login' %}">{% csrf_token %}
     {% if form.non_field_errors %}<ul class="errorlist" style="margin-bottom:12px">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
     <p><label for="id_username">E-mail</label><input type="email" name="username" id="id_username" required autofocus autocomplete="username"></p>
     <p><label for="id_password">Hasło</label><input type="password" name="password" id="id_password" required autocomplete="current-password"></p>

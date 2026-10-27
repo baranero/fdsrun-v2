@@ -316,3 +316,14 @@ class ProjectTests(TestCase):
         self.assertEqual((job.name, job.project.name, job.note), ("Klatka D", "Biurowiec", "wariant 2"))
         self.assertContains(self.client.get(reverse("jobs:list") + "?p=Biurowiec"), "Klatka D")
         self.assertNotContains(self.client.get(reverse("jobs:list") + "?p=none"), "Klatka D")
+
+
+@override_settings(SOCIAL_PROVIDERS_ENABLED=["google"], SOCIALACCOUNT_PROVIDERS={"google": {"APPS": [{"client_id": "x", "secret": "y"}], "SCOPE": ["email"]}})
+class SocialLoginTests(TestCase):
+    def test_buttons_and_redirect_to_provider(self):
+        r = self.client.get(reverse("accounts:login"))
+        self.assertContains(r, "Kontynuuj z Google")
+        self.assertNotContains(r, "Kontynuuj z GitHub")
+        r = self.client.post(reverse("google_login"))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("accounts.google.com", r["Location"])

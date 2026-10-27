@@ -44,7 +44,7 @@ def two_factor_check(request):
         if twofactor.verify(user.totp_secret, code) or twofactor.use_backup_code(user, code):
             nxt = request.session.pop("pre_2fa_next", None) or reverse("jobs:dashboard")
             request.session.pop("pre_2fa_user", None)
-            login(request, user)
+            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
             return redirect(nxt)
         error = "Nieprawidłowy kod. Sprawdź czas w telefonie i spróbuj ponownie."
     return render(request, "accounts/two_factor_check.html", {"error": error})
@@ -84,7 +84,7 @@ def register(request):
     form = RegisterForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.save()
-        login(request, user)          # login first: the token depends on last_login
+        login(request, user, backend="django.contrib.auth.backends.ModelBackend")  # login first: the token depends on last_login
         send_confirmation(user)
         messages.info(request, "Konto założone. Wysłaliśmy e-mail z linkiem potwierdzającym adres — kliknij go, żeby uruchamiać obliczenia.")
         return redirect("jobs:dashboard")
