@@ -170,8 +170,12 @@ LOGGING = {
 
 # Company details for invoices and legal pages (fill in before launch — docs/sekrety.md)
 COMPANY = {
-    "name": env("COMPANY_NAME", "FP Solutions Jakub Baran"),
-    "address": env("COMPANY_ADDRESS", "[adres siedziby]"),
-    "nip": env("COMPANY_NIP", "[NIP]"),
+    # Dane z zaświadczenia CEIDG z 27.10.2026 (jawne); sekrety COMPANY_* mogą je nadpisać.
+    "name": env("COMPANY_NAME", "Fire Protection Solutions Jakub Baran"),
+    "address": env("COMPANY_ADDRESS", "ul. Grzybowa 7A/2, 05-825 Grodzisk Mazowiecki"),
+    "nip": env("COMPANY_NIP", "6182094888"),
+    "regon": env("COMPANY_REGON", "528892780"),
     "email": env("COMPANY_EMAIL", "biuro@fp-solutions.pl"),
+    "phone": env("COMPANY_PHONE", "+48 790 782 993"),
+    "www": env("COMPANY_WWW", "https://www.fp-solutions.pl/"),
 }
