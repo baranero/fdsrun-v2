@@ -63,6 +63,29 @@ def job_input(request, job):
     return FileResponse(open(path, "rb"), as_attachment=True, filename=job.filename)
 
 
+def remaining_seconds(job) -> float:
+    """Wall seconds left. Wall time per step is nearly constant through a run, so the question
+    is how many steps remain: the analyzer's flow model says what share of all steps falls
+    before the current simulation time (fire phase = small steps, cooling = large steps).
+    Early in the run that share is uncertain, so the answer is blended with the pre-start
+    estimate; without a profile (old jobs) it falls back to a linear extrapolation."""
+    T, t, wall, steps = job.sim_time, job.progress_t, job.wall_seconds, job.progress_step
+    linear = (T - t) * wall / t if t > 0 else 0.0
+    profile = job.analysis.get("model", {}).get("velocity", {}).get("profile") or []
+    if not profile or steps <= 0 or T <= 0:
+        return max(0.0, linear)
+    x = min(1.0, t / T) * len(profile)
+    i = int(x)
+    lo = profile[i - 1] if i >= 1 else 0.0
+    hi = profile[i] if i < len(profile) else 1.0
+    frac = lo + (hi - lo) * (x - i)
+    if frac < 0.02:
+        return max(0.0, job.est_hours * 3600 - wall)
+    by_profile = max(0.0, (steps / frac - steps) * (wall / steps))
+    w = min(1.0, (t / T) / 0.15)
+    return w * by_profile + (1 - w) * max(0.0, job.est_hours * 3600 - wall)
+
+
 @require_POST
 @agent_auth
 def job_progress(request, job):
@@ -85,7 +108,8 @@ def job_progress(request, job):
             job.status = Job.Status.TESTING if job.wall_seconds < TEST_WINDOW_S else Job.Status.RUNNING
             job.status_message = "Bieg testowy" if job.status == Job.Status.TESTING else "Obliczenia w toku"
         if job.progress_t > 0 and job.wall_seconds > 30:
-            job.eta_hours = (job.sim_time - job.progress_t) * (job.wall_seconds / job.progress_t) / 3600
+            eta_s = remaining_seconds(job)
+            job.eta_hours = eta_s / 3600 if job.eta_hours is None else 0.7 * job.eta_hours + 0.3 * eta_s / 3600
             job.projected_hours = job.wall_seconds / 3600 + job.eta_hours
             over = job.est_hours and job.projected_hours > job.est_hours * BUDGET_FACTOR
             if over and not job.budget_confirmed and job.wall_seconds > BUDGET_MIN_WALL_S and job.progress_t > BUDGET_MIN_PROGRESS * job.sim_time:

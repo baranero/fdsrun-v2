@@ -25,7 +25,7 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 - [x] Konto admina klienta (biuro@fp-solutions.pl)
 - [x] Błąd „Bus error” przy 8 procesach (klatkaD) naprawiony: `--ipc=host` + nielimitowany stos (D-9); komendy admina `job_retry`, `job_stop`, smoke test z `copy_of`/`stop_after_s`
 - [x] Bramka: klatkaC_izoterm (604E6C69) policzona od A do Z: 6,89 h na cpx42 (szacunek 7,9 h), k=2,72e-6; klatkaD (C9C70BAF) w toku
-- [ ] Prognoza ETA w trakcie biegu zawyża (klatkaC: 13 h prognozy vs 6,9 h realnie) — poprawić model tempa (średnia krocząca dt, nie chwilowe tempo)
+- [x] Prognoza ETA w trakcie biegu: z profilu kroków analizatora (faza pożaru = małe kroki) zamiast liniowej ekstrapolacji; na historii klatkaC daje 7,9–8,7 h zamiast 13 h (realnie 6,9 h)
 
 ## Etap 2 — konta i zlecenia
 - [x] Nowy wygląd (27.10): pasek menu, paleta, tryb ciemny, responsywność; pulpit, lista z filtrami, ekran zlecenia z zakładkami, konsola FDS na żywo, strona główna i cennik/FAQ (dokument „analiza UX i plan nowego interfejsu”)
