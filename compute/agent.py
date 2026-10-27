@@ -195,10 +195,21 @@ def main():
             log(f"requested {procs} processes but machine has {nproc} vCPU; using {nproc}")
             procs = nproc
         fds_log = open(os.path.join(WORK, "fds_stdout.log"), "ab")
+        # --ipc=host: Intel MPI exchanges data through /dev/shm; Docker's default 64 MB
+        # overflows with many ranks and kills a rank with SIGBUS. Unlimited stack as NIST's
+        # own run scripts set (ulimit -s unlimited).
+        docker_flags = ["--ipc=host", "--ulimit", "stack=-1:-1", "-v", f"{WORK}:/work", "-w", "/work"]
+        try:  # machine/container facts at the top of the log, for diagnosing crashes
+            facts = subprocess.run(
+                ["docker", "run", "--rm", *docker_flags, "--entrypoint", "sh", image, "-c",
+                 "grep -m1 'model name' /proc/cpuinfo; nproc; free -m | head -2; df -h /dev/shm | tail -1; ulimit -s"],
+                capture_output=True, text=True, timeout=60).stdout
+            fds_log.write(f"--- machine ---\n{facts}--- fds ---\n".encode())
+            fds_log.flush()
+        except Exception:  # noqa: BLE001
+            pass
         proc = subprocess.Popen(
-            # --ipc=host: Intel MPI exchanges data through /dev/shm; Docker's default 64 MB
-            # overflows with many ranks and kills a rank with SIGBUS.
-            ["docker", "run", "--rm", "--name", "fds", "--ipc=host", "-v", f"{WORK}:/work", "-w", "/work", image,
+            ["docker", "run", "--rm", "--name", "fds", *docker_flags, image,
              "mpiexec", "-n", str(procs), "fds", fds_file],
             stdout=fds_log, stderr=subprocess.STDOUT,
         )
