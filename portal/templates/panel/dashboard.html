@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Panel · fdsrun{% endblock %}
+{% block content %}
+<section>
+  <div class="eyebrow">panel administratora</div>
+  <h1>Pulpit</h1>
+  {% include "panel/_nav.html" %}
+</section>
+
+<section>
+  <h2>Ten miesiąc</h2>
+  <div class="strip">
+    <div class="stat key"><span class="k">Przychód netto</span><span class="v">{{ month.revenue|floatformat:0 }} zł</span><span class="s">{{ month.n }} zleceń</span></div>
+    <div class="stat"><span class="k">Koszt serwerów</span><span class="v">{{ month.cost_pln|floatformat:0 }} zł</span><span class="s">{{ month.cost_eur|floatformat:2 }} €</span></div>
+    <div class="stat key"><span class="k">Marża</span><span class="v">{{ month.margin|floatformat:0 }} zł</span><span class="s">{{ month.hours|floatformat:1 }} h obliczeń</span></div>
+    <div class="stat"><span class="k">Użytkownicy</span><span class="v">{{ users }}</span><span class="s">+{{ users_month }} w tym miesiącu</span></div>
+  </div>
+  <p class="muted">Od początku: przychód {{ total.revenue|floatformat:0 }} zł, koszt {{ total.cost_pln|floatformat:0 }} zł, marża {{ total.margin|floatformat:0 }} zł, {{ total.n }} zleceń. Koszt serwera portalu (stały) nie jest tu wliczony.</p>
+</section>
+
+<div class="cols">
+<section>
+  <h2>Liczy się teraz</h2>
+  {% if active %}
+  <div class="table-scroll"><table>
+    <tr><th>Nr</th><th>Kto</th><th>Status</th><th class="num">Postęp</th><th class="num">Pozostało</th></tr>
+    {% for j in active %}<tr><td class="mono"><a href="{% url 'jobs:detail' j.public_id %}">{{ j.public_id }}</a></td><td>{{ j.owner.email }}</td><td><span class="pill {{ j.status }}">{{ j.get_status_display }}</span></td><td class="num">{{ j.progress_pct }}%</td><td class="num">{% if j.eta_hours %}{{ j.eta_hours|floatformat:1 }} h{% else %}—{% endif %}</td></tr>{% endfor %}
+  </table></div>
+  {% else %}<p class="muted">Brak aktywnych zleceń.</p>{% endif %}
+  <h3>Maszyny w chmurze</h3>
+  {% if machines %}
+  <div class="table-scroll"><table>
+    <tr><th>Maszyna</th><th>Typ</th><th>Status</th><th class="num">Działa</th><th class="num">Koszt</th></tr>
+    {% for m in machines %}<tr><td class="mono">{{ m.name }}</td><td>{{ m.server_type }}</td><td>{{ m.get_status_display }}</td><td class="num">{{ m.hours|floatformat:2 }} h</td><td class="num">{{ m.cost_eur|floatformat:3 }} €</td></tr>{% endfor %}
+  </table></div>
+  {% else %}<p class="muted">Żadna maszyna nie działa — nic nie kosztuje.</p>{% endif %}
+  {% if lost %}<p class="pill error">{{ lost|length }} maszyn nie udało się usunąć — sprawdź konsolę Hetznera</p>{% endif %}
+</section>
+<section>
+  <h2>Trafność wyceny</h2>
+  <p class="note">Szacunek przed startem kontra rzeczywisty czas (ostatnie zakończone).</p>
+  {% if accuracy %}
+  <div class="table-scroll"><table>
+    <tr><th>Nr</th><th>Serwer</th><th class="num">Szacunek</th><th class="num">Rzeczywisty</th><th class="num">Błąd</th></tr>
+    {% for j in accuracy %}<tr><td class="mono">{{ j.public_id }}</td><td>{{ j.server_type }}</td><td class="num">{{ j.est_hours|floatformat:2 }} h</td><td class="num">{% widthratio j.wall_seconds 3600 1 %} h</td><td class="num">{% widthratio j.wall_seconds j.est_hours 0.0277778 as pct %}{{ pct|add:"-100" }}%</td></tr>{% endfor %}
+  </table></div>
+  {% else %}<p class="muted">Jeszcze brak zakończonych zleceń.</p>{% endif %}
+  <h3>Kalibracja serwerów</h3>
+  <div class="table-scroll"><table>
+    <tr><th>Serwer</th><th class="num">k [µs/komórka·krok]</th><th class="num">Próbek</th><th>Aktualizacja</th></tr>
+    {% for c in calibration %}<tr><td>{{ c.server_type }}</td><td class="num">{% widthratio c.k 0.000001 1 %}</td><td class="num">{{ c.samples }}</td><td>{{ c.updated_at|date:"d.m H:i" }}</td></tr>{% empty %}<tr><td colspan="4" class="muted">Wartości domyślne z kalibracji na plikach .out (wrzesień 2026)</td></tr>{% endfor %}
+  </table></div>
+</section>
+</div>
+
+<section>
+  <h2>Miesiące</h2>
+  <div class="table-scroll"><table>
+    <tr><th>Miesiąc</th><th class="num">Zleceń</th><th class="num">Godzin</th><th class="num">Przychód</th><th class="num">Koszt</th><th class="num">Marża</th></tr>
+    {% for m in by_month %}<tr><td>{{ m.month|date:"m.Y" }}</td><td class="num">{{ m.n }}</td><td class="num">{{ m.hours|floatformat:1 }}</td><td class="num">{{ m.revenue|floatformat:0 }} zł</td><td class="num">{{ m.cost_pln|floatformat:0 }} zł</td><td class="num">{{ m.margin|floatformat:0 }} zł</td></tr>{% empty %}<tr><td colspan="6" class="muted">Brak danych</td></tr>{% endfor %}
+  </table></div>
+</section>
+
+<section>
+  <h2>Ostatnie zlecenia</h2>
+  <div class="table-scroll"><table>
+    <tr><th>Nr</th><th>Kto</th><th>Nazwa</th><th>Status</th><th class="num">Koszt</th><th class="num">Cena</th><th>Utworzono</th></tr>
+    {% for j in recent %}<tr><td class="mono"><a href="{% url 'jobs:detail' j.public_id %}">{{ j.public_id }}</a></td><td>{{ j.owner.email }}</td><td>{{ j.name }}</td><td><span class="pill {{ j.status }}">{{ j.get_status_display }}</span></td><td class="num">{{ j.cost_eur|floatformat:3 }} €</td><td class="num">{{ j.price_pln|floatformat:0 }} zł</td><td>{{ j.created_at|date:"d.m H:i" }}</td></tr>{% endfor %}
+  </table></div>
+  <p><a href="{% url 'panel:jobs' %}">Wszystkie zlecenia →</a></p>
+</section>
+{% endblock %}

@@ -120,8 +120,12 @@ def delete_machine(self, job_id):
     machine.deleted_at = timezone.now()
     machine.save()
     job = machine.job
+    from apps.jobs.analyzer import multiplier_for
+
     job.cost_eur = machine.cost_eur
-    job.save(update_fields=["cost_eur"])
+    # client price = actual server cost × multiplier for the account type (decisions 5-6)
+    job.price_pln = round(machine.cost_eur * settings.PRICING["eur_pln"] * multiplier_for(job.owner), 2)
+    job.save(update_fields=["cost_eur", "price_pln"])
     log_event(job, "machine_deleted", f"{machine.hours:.2f} h, {machine.cost_eur:.3f} EUR")
 
 

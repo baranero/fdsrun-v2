@@ -42,8 +42,10 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 - [ ] Opłata minimalna i mnożniki wg decyzji 5–6
 
 ## Etap 4 — panel admina
-- [ ] Pulpit: zlecenia, przychód, koszty, marża, maszyny
-- [ ] Dziennik dostępu admina do plików klientów (zapis jest, brak widoku)
+- [x] Pulpit: zlecenia, przychód, koszty, marża, maszyny, trafność wycen, kalibracja (`/panel/`)
+- [x] Użytkownicy: rodzaj konta, zaufany, limit, blokada; maszyny z ręcznym usuwaniem
+- [x] Dziennik dostępu admina do plików klientów
+- [x] Cena rzeczywista zlecenia = koszt serwera × mnożnik (zapisywana po usunięciu maszyny)
 - [ ] Projekty regulaminu, polityki prywatności, DPA
 
 ## Etap 5 — angielski, testy, Smokeview w przeglądarce
