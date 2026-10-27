@@ -18,7 +18,8 @@ class Command(BaseCommand):
             "id": j.public_id, "status": j.status, "message": j.status_message,
             "step": j.progress_step, "t": j.progress_t, "wall_s": j.wall_seconds, "cost_eur": j.cost_eur,
             "machine": machine.status if machine else None, "ip": machine.ip if machine else None,
-            "files": [f["name"] for f in j.result_files()],
+            "n_files": len(j.result_files()),
+            "files": [f["name"] for f in j.result_files() if not f["name"].endswith((".sf", ".sf.bnd", ".s3d", ".s3d.sz", ".s3dd", ".bf", ".bf.bnd", ".prt5", ".iso"))][:40],
             "out_tail": j.out_tail[-1500:], "log_tail": j.log_tail[-1500:],
             "events": [f"{e.at:%H:%M:%S} {e.kind} {e.detail[:120]}" for e in j.events.all()],
         }, ensure_ascii=False, indent=1))
