@@ -34,7 +34,7 @@
       <p class="muted small">FDS liczy jedną siatkę na jednym procesie. Czas dyktuje najbardziej obciążony proces, więc więcej rdzeni nie zawsze pomaga — stąd kilka wariantów.</p>
       <form method="post" action="{% url 'jobs:start' job.public_id %}" id="startform">{% csrf_token %}
       <div class="table-wrap"><table>
-        <thead><tr><th></th><th>Serwer</th><th class="num">Procesy</th><th class="num">Czas</th><th class="num">Cena netto</th></tr></thead>
+        <thead><tr><th></th><th>Serwer</th><th class="num">Procesy</th><th class="num">Czas</th><th class="num">Cena netto</th><th></th></tr></thead>
         <tbody>
         {% for o in options %}
         <tr{% if o.procs == job.procs and o.server == job.server_type %} class="pick"{% endif %}>
@@ -43,6 +43,7 @@
           <td class="num">{{ o.procs }}</td>
           <td class="num">{{ o.hours|floatformat:1 }} h</td>
           <td class="num">{{ o.pricePln|floatformat:0 }} zł</td>
+          <td>{% if o.procs == cheapest.procs and o.server == cheapest.server %}<span class="pill ok">najtaniej</span>{% endif %} {% if o.procs == fastest.procs and o.server == fastest.server %}<span class="pill info">najszybciej</span>{% endif %}</td>
         </tr>
         {% endfor %}
         </tbody>

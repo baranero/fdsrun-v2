@@ -149,6 +149,8 @@ def job_detail(request, public_id):
         "has_errors": bool(errors),
         "options": job.analysis.get("advice", {}).get("best", []),
         "tips": job.analysis.get("advice", {}).get("tips", []),
+        "cheapest": job.analysis.get("advice", {}).get("cheapest") or {},
+        "fastest": job.analysis.get("advice", {}).get("fastest") or {},
         "confidence": job.analysis.get("estimate", {}).get("confidence", {}),
         "files": job.result_files(),
         "events": job.events.order_by("at"),
