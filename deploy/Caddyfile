@@ -13,6 +13,21 @@
 		reverse_proxy host.docker.internal:9000
 	}
 
+	# result downloads: Django decides (session or signed link), Caddy streams the file
+	# straight from the job volume with HTTP Range support, so downloads resume and no
+	# gunicorn worker is tied up for a 10 GB archive.
+	route /pobierz/* {
+		forward_auth web:8000 {
+			uri /api/download/auth
+			copy_headers X-Fdsrun-Path X-Fdsrun-Name
+		}
+		rewrite * {http.request.header.X-Fdsrun-Path}
+		root * /srv/jobs
+		header Content-Disposition "attachment; filename=\"{http.request.header.X-Fdsrun-Name}\""
+		header Cache-Control "private, no-store"
+		file_server
+	}
+
 	handle {
 		reverse_proxy web:8000
 	}

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import downloads, views
 
 app_name = "jobs"
 urlpatterns = [
@@ -14,4 +14,5 @@ urlpatterns = [
     path("<str:public_id>/stop/", views.job_stop, name="stop"),
     path("<str:public_id>/kontynuuj/", views.job_continue, name="continue"),
     path("<str:public_id>/pliki/<str:name>", views.job_file, name="file"),
+    path("<str:public_id>/linki/", downloads.share_links, name="share"),
 ]

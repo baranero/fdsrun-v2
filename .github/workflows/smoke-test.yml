@@ -58,6 +58,16 @@ jobs:
             sleep 20
           done
           echo "::error::timeout"; exit 1
+      - name: Download check (archive via Caddy, HTTP Range)
+        if: success()
+        run: |
+          sleep 30
+          out=$(python3 deploy/deployer-call.py ${{ steps.s.outputs.ip }} /_deploy/manage '{"args":["share_link","${{ steps.start.outputs.job }}"]}')
+          link=$(echo "$out" | python3 -c "import json,sys; print(json.load(sys.stdin)['output'].strip().splitlines()[-1])")
+          echo "link: ${link%%\?*}"
+          code=$(curl -s -o /tmp/part.bin -w "%{http_code}" -r 0-99 "$link")
+          echo "range request -> HTTP $code, $(stat -c %s /tmp/part.bin) bytes"
+          [ "$code" = "206" ] || { echo "::error::expected 206 from a Range download"; exit 1; }
       - name: Report into the "Adresy środowisk" issue
         if: always()
         env:

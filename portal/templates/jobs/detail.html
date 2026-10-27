@@ -5,7 +5,7 @@
   <div class="crumb"><a href="{% url 'jobs:list' %}">Zlecenia</a> / <span class="mono">{{ job.public_id }}</span></div>
   <div class="page-head">
     <div><h1>{{ job.name }}</h1><p class="sub">{{ job.filename }}{% if job.chid and job.chid != job.name %}, CHID {{ job.chid }}{% endif %}, FDS {{ job.fds_version }}</p></div>
-    {% if job.status == 'done' and files %}<a class="btn primary" href="#pliki" data-tab="pliki">Pobierz wyniki</a>{% endif %}
+    {% if archives %}<a class="btn primary" href="#pliki" data-tab="pliki">Pobierz wyniki</a>{% endif %}
   </div>
 </div>
 
@@ -91,7 +91,26 @@
 </div>
 
 <div class="panel" id="panel-pliki">
-  <div id="files-panel" {% if job.is_active %}hx-get="{% url 'jobs:detail' job.public_id %}" hx-trigger="every 60s" hx-select="#files-panel" hx-swap="outerHTML"{% endif %}>
+  <div id="files-panel" {% if job.is_active or archives_pending %}hx-get="{% url 'jobs:detail' job.public_id %}" hx-trigger="every 30s" hx-select="#files-panel" hx-swap="outerHTML"{% endif %}>
+  {% if archives %}
+  <section>
+    <h2>Pobierz jednym plikiem</h2>
+    <div class="tiles">
+      {% for a in archives %}
+      <a class="tile{% if a.key == 'csv' %} key{% endif %}" href="{% url 'download' job.public_id a.name %}" style="color:inherit">
+        <span class="k">{{ a.title }}</span><span class="v">{{ a.size|filesizeformat }}</span><span class="s">{{ a.desc }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    <div class="actions">
+      <button class="btn" type="button" hx-get="{% url 'jobs:share' job.public_id %}" hx-target="#share-slot" hx-swap="innerHTML">Link na 7 dni / pobieranie wznawialne</button>
+      <span class="muted small">Archiwa są bez kompresji, pobieranie obsługuje wznawianie (HTTP Range).</span>
+    </div>
+    <div id="share-slot"></div>
+  </section>
+  {% elif archives_pending %}
+  <div class="notice">Pakuję wyniki w archiwa — przy dużych plikach Smokeview trwa to kilka minut. Pojedyncze pliki możesz pobierać już teraz.</div>
+  {% endif %}
   {% if files %}
   <div class="file-groups">
     {% for g in file_groups %}
@@ -99,7 +118,7 @@
       <h3>{{ g.title }} <small>{{ g.files|length }} {% if g.files|length == 1 %}plik{% else %}plików{% endif %}, {{ g.size|filesizeformat }}</small></h3>
       <div class="table-wrap"><table>
         <thead><tr><th>Plik</th><th class="num">Rozmiar</th><th>Zapisano</th></tr></thead>
-        <tbody>{% for f in g.files %}<tr><td><a class="mono" href="{% url 'jobs:file' job.public_id f.name %}">{{ f.name }}</a></td><td class="num">{{ f.size|filesizeformat }}</td><td class="muted small nowrap">{{ f.mtime|date:"d.m.Y H:i" }}</td></tr>{% endfor %}</tbody>
+        <tbody>{% for f in g.files %}<tr><td><a class="mono" href="{% url 'download' job.public_id f.name %}">{{ f.name }}</a></td><td class="num">{{ f.size|filesizeformat }}</td><td class="muted small nowrap">{{ f.mtime|date:"d.m.Y H:i" }}</td></tr>{% endfor %}</tbody>
       </table></div>
     </section>
     {% endfor %}
@@ -150,7 +169,7 @@
       {% if issues %}
       <ul class="issues">{% for i in issues %}<li class="{{ i.level }}"><span class="pill {% if i.level == 'error' %}error{% elif i.level == 'warn' %}warn{% else %}info{% endif %}">{% if i.level == 'error' %}błąd{% elif i.level == 'warn' %}uwaga{% else %}info{% endif %}</span><span>{{ i.msg }}</span></li>{% endfor %}</ul>
       {% else %}<p class="muted">Nie znaleziono problemów.</p>{% endif %}
-      <p><a href="{% url 'jobs:file' job.public_id job.filename %}">Pobierz plik wejściowy</a></p>
+      <p><a href="{% url 'download' job.public_id job.filename %}">Pobierz plik wejściowy</a></p>
     </section>
     {% endif %}
   </div>

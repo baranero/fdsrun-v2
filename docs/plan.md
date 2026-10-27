@@ -28,7 +28,7 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 
 ## Etap 2 — konta i zlecenia
 - [x] Nowy wygląd (27.10): pasek menu, paleta, tryb ciemny, responsywność; pulpit, lista z filtrami, ekran zlecenia z zakładkami, konsola FDS na żywo, strona główna i cennik/FAQ (dokument „analiza UX i plan nowego interfejsu”)
-- [ ] Pobieranie: archiwa, wznawianie, linki tymczasowe
+- [x] Pobieranie: archiwa CSV/Smokeview/wszystko po zakończeniu, Caddy serwuje pliki z HTTP Range (wznawianie), linki podpisane na 7 dni bez logowania, `curl -C -`/`wget -c`
 - [ ] Foldery projektów; logowanie Google/GitHub/Microsoft; dane do faktury w koncie
 - [x] Reset hasła, potwierdzenie e-maila (wymagane przed startem obliczeń)
 - [x] 2FA (aplikacja TOTP, kody zapasowe)

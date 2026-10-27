@@ -1,0 +1,14 @@
+<div class="dl-box" id="share">
+  <h3>Linki na {{ days }} dni, bez logowania</h3>
+  {% if items %}
+  <p class="muted small">Wklej link do menedżera pobierania (Free Download Manager, JDownloader) albo pobierz z wiersza poleceń — pobieranie da się wznowić po przerwie:</p>
+  {% for a in items %}
+  <div>
+    <div class="row"><strong>{{ a.title }}</strong><span class="muted small">{{ a.size|filesizeformat }}</span><button class="btn sm" type="button" onclick="navigator.clipboard.writeText(this.nextElementSibling.textContent);this.textContent='Skopiowano'">Kopiuj link</button><code class="small" style="word-break:break-all">{{ a.url }}</code></div>
+    <pre class="log" style="max-height:none;font-size:11.5px">curl -L -C - -o "{{ a.name }}" "{{ a.url }}"
+wget -c -O "{{ a.name }}" "{{ a.url }}"</pre>
+  </div>
+  {% endfor %}
+  <p class="muted small">Każdy, kto ma link, może pobrać plik do wygaśnięcia linku. Suma kontrolna: {% for a in items %}<a href="{% url 'download' job.public_id a.name|add:'.sha256' %}">{{ a.name }}.sha256</a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+  {% else %}<p class="muted">Archiwa jeszcze się przygotowują — spróbuj za chwilę.</p>{% endif %}
+</div>

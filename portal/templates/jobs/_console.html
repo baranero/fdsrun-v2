@@ -6,8 +6,8 @@
     <div class="right">
       <label><input type="checkbox" id="onlyerr" hx-preserve onchange="document.getElementById('console').classList.toggle('filter-err', this.checked)"> tylko błędy i ostrzeżenia</label>
       <label><input type="checkbox" id="autoscroll" hx-preserve checked> przewijaj</label>
-      {% if job.chid %}<a href="{% url 'jobs:file' job.public_id job.chid|add:'.out' %}">pobierz .out</a>{% endif %}
-      <a href="{% url 'jobs:file' job.public_id 'fds_stdout.log' %}">stdout</a>
+      {% if job.chid %}<a href="{% url 'download' job.public_id job.chid|add:'.out' %}">pobierz .out</a>{% endif %}
+      <a href="{% url 'download' job.public_id 'fds_stdout.log' %}">stdout</a>
     </div>
   </div>
   <pre id="console-pre">{% if text %}{% for line in text.splitlines %}<span class="{% if 'ERROR' in line or 'Bus error' in line or 'KILLED' in line %}ln-err{% elif 'WARNING' in line or 'Warning' in line %}ln-warn{% elif 'Time Step' in line or 'Step Size' in line or 'Mesh' in line %}ln-step{% else %}ln-dim{% endif %}">{{ line }}</span>

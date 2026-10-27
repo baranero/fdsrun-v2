@@ -4,6 +4,9 @@ Decyzje podjęte w trakcie budowy, od najnowszej. Decyzje klienta z planu wdroż
 
 ## 2026-10-26 — Etap 0
 
+**D-10. Pliki wyników serwuje Caddy, nie Django.**
+Ścieżka `/pobierz/<id>/<plik>` trafia do Caddy, który pyta Django (`forward_auth` → `/api/download/auth`), czy wolno, i sam strumieniuje plik z wolumenu `jobdata` z obsługą HTTP Range. Dzięki temu 10-GB archiwum nie blokuje procesu gunicorna, a pobieranie da się wznowić (`curl -C -`, menedżery pobierania). Linki tymczasowe: HMAC z datą ważności (7 dni), bez logowania. Archiwa ZIP bez kompresji budowane po zakończeniu zlecenia (task `build_archives_task`).
+
 **D-9. Kontener FDS startuje z `--ipc=host` i nielimitowanym stosem (`ulimit -s unlimited`).**
 Docker domyślnie daje kontenerowi 64 MB `/dev/shm` i 8 MB stosu. Intel MPI wymienia dane między procesami przez `/dev/shm`, a FDS (kompilator Intel) trzyma duże tablice na stosie — przy 8 procesach na cpx42 klatkaD padała po kilkunastu krokach z sygnałem „Bus error” (znalezione 27.10 przez powtórzenie zlecenia 6E38B092 z diagnostyką). Skrypty uruchomieniowe NIST same ustawiają `ulimit -s unlimited`. Po zmianie klatkaD liczy się na 8 procesach.
 

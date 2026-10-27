@@ -136,7 +136,7 @@ class JobFlowTests(TestCase):
         self.assertIsNotNone(job.expires_at)
 
         # owner can download, agent token no longer accepted for progress
-        self.assertEqual(self.client.get(reverse("jobs:file", args=[job.public_id, "test_devc.csv"])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("jobs:file", args=[job.public_id, "test_devc.csv"]), follow=True).status_code, 200)
         r = self.client.post(reverse("compute:progress", args=[job.public_id]), json.dumps({"phase": "running"}), content_type="application/json", **auth)
         self.assertEqual(r.json()["action"], "stop")
 
@@ -248,3 +248,55 @@ class NewScreensTests(TestCase):
         r = self.client.get(reverse("jobs:console", args=[job.public_id]))
         self.assertContains(r, "Time Step")
         self.assertContains(self.client.get(reverse("legal:pricing")), "Cennik")
+
+
+class DownloadTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.tmp = tempfile.mkdtemp()
+        self.override = override_settings(JOB_DATA_ROOT=self.tmp)
+        self.override.enable()
+        self.user = get_user_model().objects.create_user(email="d@example.com", password="x", kind="company")
+        self.other = get_user_model().objects.create_user(email="o@example.com", password="x", kind="company")
+        self.job = Job(owner=self.user, name="m", filename="m.fds", chid="m", status=Job.Status.DONE)
+        self.job.save()
+        self.job.results_dir.mkdir(parents=True)
+        (self.job.results_dir / "m_hrr.csv").write_text("a,b\n1,2\n")
+        (self.job.results_dir / "m.smv").write_bytes(b"x" * 5000)
+        (self.job.results_dir / "m.out").write_text("ok\n")
+
+    def tearDown(self):
+        self.override.disable()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_archives_and_downloads(self):
+        from apps.jobs import archives
+
+        self.assertEqual(archives.build_archives(self.job), 3)
+        names = [a["key"] for a in archives.archive_files(self.job)]
+        self.assertEqual(names, ["csv", "smokeview", "all"])
+        self.client.login(username="d@example.com", password="x")
+        url = reverse("download", args=[self.job.public_id, "m.smv"])
+        r = self.client.get(url, HTTP_RANGE="bytes=100-199")
+        self.assertEqual(r.status_code, 206)
+        self.assertEqual(r["Content-Range"], "bytes 100-199/5000")
+        self.assertEqual(len(b"".join(r.streaming_content)), 100)
+        self.assertEqual(self.client.get(reverse("download", args=[self.job.public_id, "m_all.zip"])).status_code, 200)
+        # forward_auth answer for Caddy
+        r = self.client.get(reverse("download_auth"), HTTP_X_FORWARDED_URI=f"/pobierz/{self.job.public_id}/m_all.zip")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r["X-Fdsrun-Path"], f"/{self.job.public_id}/archives/m_all.zip")
+        self.assertEqual(self.client.get(reverse("download_auth"), HTTP_X_FORWARDED_URI=f"/pobierz/{self.job.public_id}/../x").status_code, 404)
+        # another user: no
+        self.client.login(username="o@example.com", password="x")
+        self.assertEqual(self.client.get(url).status_code, 403)
+        # signed link: yes, without login
+        self.client.logout()
+        signed = archives.download_url(self.job, "m_csv.zip", signed=True)
+        self.assertEqual(self.client.get(signed).status_code, 200)
+        self.assertEqual(self.client.get(reverse("download_auth"), HTTP_X_FORWARDED_URI=signed).status_code, 200)
+        self.assertEqual(self.client.get(signed.replace("?t=", "?t=x")).status_code, 403)
+        # share fragment for the owner
+        self.client.login(username="d@example.com", password="x")
+        self.assertContains(self.client.get(reverse("jobs:share", args=[self.job.public_id])), "curl -L -C -")

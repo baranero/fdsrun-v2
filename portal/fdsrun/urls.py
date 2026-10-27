@@ -3,6 +3,8 @@ from django.http import JsonResponse
 from django.urls import include, path
 from django.views.generic import TemplateView
 
+from apps.jobs import downloads
+
 
 def health(_request):
     return JsonResponse({"status": "ok"})
@@ -14,6 +16,8 @@ urlpatterns = [
     path("konto/", include("apps.accounts.urls")),
     path("zlecenia/", include("apps.jobs.urls")),
     path("api/compute/", include("apps.compute.urls")),
+    path("api/download/auth", downloads.download_auth, name="download_auth"),
+    path("pobierz/<str:public_id>/<str:name>", downloads.download, name="download"),
     path("panel/", include("apps.panel.urls")),
     path("", include("apps.legal.urls")),
     path("admin/", admin.site.urls),

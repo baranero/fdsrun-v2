@@ -1,16 +1,14 @@
-import mimetypes
-
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import FileResponse, Http404, HttpResponseForbidden
+from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.compute import tasks as compute_tasks
 
-from . import charts
+from . import archives, charts
 from .analyzer import AnalyzerError, analyze_file, multiplier_for, prepare_run_file
 from .forms import StartForm, UploadForm
 from .models import Job, log_event
@@ -127,29 +125,14 @@ def job_detail(request, public_id):
         "meshes": job.analysis.get("model", {}).get("meshes", []),
         "model": job.analysis.get("model", {}),
     }
-    ctx["file_groups"] = _group_files(ctx["files"], job.filename)
+    ctx["file_groups"] = archives.group_files(ctx["files"])
+    ctx["archives"] = archives.archive_files(job)
+    ctx["archives_pending"] = bool(ctx["files"]) and not ctx["archives"] and job.status in (Job.Status.DONE, Job.Status.CANCELLED, Job.Status.FAILED)
     if request.htmx:
         return render(request, "jobs/_status.html", ctx)
     return render(request, "jobs/detail.html", ctx)
 
 
-FILE_GROUPS = (
-    ("Wyniki CSV", "Wykresy, czujniki, HRR, bilans masy", (".csv",)),
-    ("Smokeview", "Pliki do wizualizacji w Smokeview", (".smv", ".sf", ".bf", ".q", ".s3d", ".iso", ".prt5", ".sz", ".ge", ".xyz")),
-    ("Dzienniki", "Log FDS i wyjście programu", (".out", ".log", ".end", ".notready", ".stop")),
-    ("Plik wejściowy", "", (".fds",)),
-)
-
-
-def _group_files(files, input_name):
-    groups = {g[0]: {"title": g[0], "desc": g[1], "files": [], "size": 0} for g in FILE_GROUPS}
-    groups["Inne"] = {"title": "Inne", "desc": "", "files": [], "size": 0}
-    for f in files:
-        ext = "." + f["name"].rsplit(".", 1)[-1].lower() if "." in f["name"] else ""
-        key = next((g[0] for g in FILE_GROUPS if ext in g[2]), "Inne")
-        groups[key]["files"].append(f)
-        groups[key]["size"] += f["size"]
-    return [g for g in groups.values() if g["files"]]
 
 
 CONSOLE_LINES = 600
@@ -258,10 +241,8 @@ def job_continue(request, public_id):
 
 @login_required
 def job_file(request, public_id, name):
+    """Old per-file URL: hand over to /pobierz/, which Caddy serves with Range support."""
     job = _own_job(request, public_id)
-    path = (job.results_dir / name).resolve()
-    if not str(path).startswith(str(job.results_dir.resolve())) or not path.is_file():
+    if not archives.resolve(job, name):
         raise Http404
-    log_event(job, "download", name, actor=request.user.email)
-    ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
-    return FileResponse(open(path, "rb"), as_attachment=True, filename=name, content_type=ctype)
+    return redirect(archives.download_url(job, name))

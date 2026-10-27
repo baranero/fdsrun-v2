@@ -73,6 +73,9 @@ def finish_job(job_id, status, message=""):
         log_event(job, "finished", f"{status}: {message}", actor="agent" if status == Job.Status.DONE else "system")
     if status == Job.Status.DONE:
         recalibrate(job)
+    from apps.jobs.archives import build_archives_task
+
+    build_archives_task.delay(job.id)
     notify.job_finished(job)
     if status == Job.Status.STALLED:
         notify.admin_alert(f"zlecenie {job.public_id} bez odpowiedzi", f"{job.owner.email}, {job.name}, {job.server_type}: {message}")
