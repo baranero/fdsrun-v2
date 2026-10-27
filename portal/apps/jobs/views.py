@@ -26,9 +26,49 @@ def _own_job(request, public_id):
 
 
 @login_required
+def dashboard(request):
+    mine = Job.objects.filter(owner=request.user)
+    active = [j for j in mine.filter(status__in=Job.ACTIVE)]
+    recent = mine.exclude(status__in=Job.ACTIVE).exclude(status=Job.Status.DRAFT)[:8]
+    drafts = mine.filter(status=Job.Status.DRAFT)[:5]
+    now = timezone.now()
+    month = mine.filter(finished_at__year=now.year, finished_at__month=now.month)
+    spent = sum(j.price_pln for j in month)
+    hours = sum((j.wall_seconds or 0) for j in month) / 3600
+    return render(request, "jobs/dashboard.html", {
+        "active": active, "recent": recent, "drafts": drafts,
+        "spent": spent, "month_jobs": month.count(), "month_hours": hours,
+        "total_jobs": mine.exclude(status=Job.Status.DRAFT).count(),
+    })
+
+
+LIST_FILTERS = {
+    "": ("Wszystkie", None),
+    "active": ("W toku", lambda q: q.filter(status__in=Job.ACTIVE)),
+    "done": ("Zakończone", lambda q: q.filter(status=Job.Status.DONE)),
+    "problem": ("Błędy i przerwane", lambda q: q.filter(status__in=[Job.Status.FAILED, Job.Status.STALLED, Job.Status.CANCELLED])),
+    "draft": ("Nieuruchomione", lambda q: q.filter(status=Job.Status.DRAFT)),
+}
+
+
+@login_required
 def job_list(request):
     jobs = Job.objects.filter(owner=request.user)
-    return render(request, "jobs/list.html", {"jobs": jobs})
+    flt = request.GET.get("f", "")
+    if flt not in LIST_FILTERS:
+        flt = ""
+    if LIST_FILTERS[flt][1]:
+        jobs = LIST_FILTERS[flt][1](jobs)
+    q = request.GET.get("q", "").strip()
+    if q:
+        from django.db.models import Q
+
+        jobs = jobs.filter(Q(name__icontains=q) | Q(public_id__icontains=q) | Q(chid__icontains=q) | Q(filename__icontains=q))
+    return render(request, "jobs/list.html", {
+        "jobs": jobs, "flt": flt, "q": q,
+        "filters": [(k, v[0]) for k, v in LIST_FILTERS.items()],
+        "poll": jobs.filter(status__in=Job.ACTIVE).exists(),
+    })
 
 
 @login_required
@@ -47,11 +87,11 @@ def job_new(request):
         except AnalyzerError as e:
             job.delete()
             messages.error(request, f"Nie udało się przeanalizować pliku: {e}")
-            return render(request, "jobs/new.html", {"form": form})
+            return render(request, "jobs/new.html", {"form": form, "max_mb": settings.MAX_UPLOAD_MB})
         _apply_analysis(job, data)
         log_event(job, "uploaded", f"{f.name}, {f.size} B", actor=request.user.email)
         return redirect("jobs:detail", public_id=job.public_id)
-    return render(request, "jobs/new.html", {"form": form})
+    return render(request, "jobs/new.html", {"form": form, "max_mb": settings.MAX_UPLOAD_MB})
 
 
 def _apply_analysis(job, data):
@@ -83,10 +123,62 @@ def job_detail(request, public_id):
         "tips": job.analysis.get("advice", {}).get("tips", []),
         "confidence": job.analysis.get("estimate", {}).get("confidence", {}),
         "files": job.result_files(),
+        "events": job.events.order_by("at"),
+        "meshes": job.analysis.get("model", {}).get("meshes", []),
+        "model": job.analysis.get("model", {}),
     }
+    ctx["file_groups"] = _group_files(ctx["files"], job.filename)
     if request.htmx:
         return render(request, "jobs/_status.html", ctx)
     return render(request, "jobs/detail.html", ctx)
+
+
+FILE_GROUPS = (
+    ("Wyniki CSV", "Wykresy, czujniki, HRR, bilans masy", (".csv",)),
+    ("Smokeview", "Pliki do wizualizacji w Smokeview", (".smv", ".sf", ".bf", ".q", ".s3d", ".iso", ".prt5", ".sz", ".ge", ".xyz")),
+    ("Dzienniki", "Log FDS i wyjście programu", (".out", ".log", ".end", ".notready", ".stop")),
+    ("Plik wejściowy", "", (".fds",)),
+)
+
+
+def _group_files(files, input_name):
+    groups = {g[0]: {"title": g[0], "desc": g[1], "files": [], "size": 0} for g in FILE_GROUPS}
+    groups["Inne"] = {"title": "Inne", "desc": "", "files": [], "size": 0}
+    for f in files:
+        ext = "." + f["name"].rsplit(".", 1)[-1].lower() if "." in f["name"] else ""
+        key = next((g[0] for g in FILE_GROUPS if ext in g[2]), "Inne")
+        groups[key]["files"].append(f)
+        groups[key]["size"] += f["size"]
+    return [g for g in groups.values() if g["files"]]
+
+
+CONSOLE_LINES = 600
+
+
+@login_required
+def job_console(request, public_id):
+    """Tail of the FDS .out file (the terminal view), refreshed by HTMX while the job runs."""
+    job = _own_job(request, public_id)
+    text = ""
+    path = job.results_dir / f"{job.chid}.out" if job.chid else None
+    if path and path.is_file():
+        try:
+            with open(path, "rb") as fh:
+                fh.seek(0, 2)
+                size = fh.tell()
+                fh.seek(max(0, size - 120_000))
+                text = fh.read().decode("utf-8", "replace")
+        except OSError:
+            text = ""
+        lines = text.splitlines()[-CONSOLE_LINES:]
+        if size > 120_000:
+            lines = lines[1:]
+        text = "\n".join(lines)
+    elif job.out_tail:
+        text = job.out_tail
+    if job.status == Job.Status.FAILED and job.log_tail:
+        text = (text + "\n\n--- wyjście programu ---\n" + job.log_tail).strip()
+    return render(request, "jobs/_console.html", {"job": job, "text": text, "n_lines": text.count("\n") + 1 if text else 0})
 
 
 @login_required

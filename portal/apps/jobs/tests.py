@@ -229,3 +229,22 @@ class TwoFactorTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(self.client.get(reverse("jobs:list")).status_code, 200)
         self.assertTrue(twofactor.verify(secret, pyotp.TOTP(secret).now()))
+
+
+class NewScreensTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.user = get_user_model().objects.create_user(email="s@example.com", password="x", kind="company")
+        self.client.login(username="s@example.com", password="x")
+
+    def test_dashboard_and_list_render(self):
+        self.assertContains(self.client.get(reverse("jobs:dashboard")), "Pulpit")
+        self.assertContains(self.client.get(reverse("jobs:list") + "?f=active&q=abc"), "Nic nie pasuje")
+
+    def test_console_and_pricing(self):
+        job = Job(owner=self.user, name="m", filename="m.fds", chid="m", status=Job.Status.RUNNING, out_tail=" Time Step: 1, Simulation Time: 0.1 s")
+        job.save()
+        r = self.client.get(reverse("jobs:console", args=[job.public_id]))
+        self.assertContains(r, "Time Step")
+        self.assertContains(self.client.get(reverse("legal:pricing")), "Cennik")

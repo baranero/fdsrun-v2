@@ -1,52 +1,170 @@
 {% extends "base.html" %}{% load static %}
-{% block title %}{{ job.public_id }} {{ job.name }} · fdsrun{% endblock %}
+{% block title %}{{ job.name }} · fdsrun{% endblock %}
 {% block content %}
-<section>
-  <div class="eyebrow">zlecenie {{ job.public_id }} · {{ job.filename }}</div>
-  <h1>{{ job.name }}</h1>
-</section>
+<div>
+  <div class="crumb"><a href="{% url 'jobs:list' %}">Zlecenia</a> / <span class="mono">{{ job.public_id }}</span></div>
+  <div class="page-head">
+    <div><h1>{{ job.name }}</h1><p class="sub">{{ job.filename }}{% if job.chid and job.chid != job.name %}, CHID {{ job.chid }}{% endif %}, FDS {{ job.fds_version }}</p></div>
+    {% if job.status == 'done' and files %}<a class="btn primary" href="#pliki" data-tab="pliki">Pobierz wyniki</a>{% endif %}
+  </div>
+</div>
 
 {% include "jobs/_status.html" %}
 
-{% if job.status != 'draft' %}
-<section>
-  <h2>Wykresy</h2>
-  <div id="charts" class="charts" data-url="{% url 'jobs:charts' job.public_id %}" data-active="{% if job.is_active %}1{% else %}0{% endif %}"></div>
-</section>
-<script src="{% static 'charts.js' %}" defer></script>
-{% endif %}
-
 {% if job.status == 'draft' %}
-<div class="cols">
+<nav class="tabs" id="tabs">
+  <a href="#start" data-tab="start">Uruchomienie</a>
+  <a href="#model" data-tab="model">Model <span class="cnt">{{ issues|length }}</span></a>
+</nav>
+
+<div class="panel" id="panel-start">
+  <div class="grid-2">
+    <section>
+      <h2>Serwer i liczba procesów</h2>
+      <p class="muted small">FDS liczy jedną siatkę na jednym procesie. Czas dyktuje najbardziej obciążony proces, więc więcej rdzeni nie zawsze pomaga — stąd kilka wariantów.</p>
+      <form method="post" action="{% url 'jobs:start' job.public_id %}" id="startform">{% csrf_token %}
+      <div class="table-wrap"><table>
+        <thead><tr><th></th><th>Serwer</th><th class="num">Procesy</th><th class="num">Czas</th><th class="num">Cena netto</th></tr></thead>
+        <tbody>
+        {% for o in options %}
+        <tr{% if o.procs == job.procs and o.server == job.server_type %} class="pick"{% endif %}>
+          <td><input type="radio" name="choice" value="{{ o.procs }}:{{ o.server }}" {% if o.procs == job.procs and o.server == job.server_type %}checked{% endif %} onchange="document.getElementById('procs').value='{{ o.procs }}';document.getElementById('server_type').value='{{ o.server }}';document.querySelectorAll('#startform tr').forEach(function(r){r.classList.remove('pick')});this.closest('tr').classList.add('pick')"></td>
+          <td>{{ o.server }} <span class="muted">{{ o.vcpu }} vCPU</span></td>
+          <td class="num">{{ o.procs }}</td>
+          <td class="num">{{ o.hours|floatformat:1 }} h</td>
+          <td class="num">{{ o.pricePln|floatformat:0 }} zł</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      <input type="hidden" id="procs" name="procs" value="{{ job.procs }}">
+      <input type="hidden" id="server_type" name="server_type" value="{{ job.server_type }}">
+      {% if confidence.note %}<p class="muted small">{{ confidence.note }}</p>{% endif %}
+      <div class="actions"><button class="btn primary lg" type="submit" {% if has_errors %}disabled{% endif %}>Uruchom obliczenia</button>{% if has_errors %}<span class="muted small">Najpierw popraw błędy z zakładki Model i wgraj plik ponownie.</span>{% else %}<span class="muted small">Płatność po zakończeniu. Pierwsze 2 minuty to bieg testowy bez opłaty, jeśli FDS zatrzyma się na błędzie.</span>{% endif %}</div>
+      </form>
+      {% if tips %}<ul class="tips">{% for t in tips %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+    </section>
+    <section>
+      <h2>Sprawdzenie pliku</h2>
+      {% if issues %}
+      <ul class="issues">{% for i in issues %}<li class="{{ i.level }}"><span class="pill {% if i.level == 'error' %}error{% elif i.level == 'warn' %}warn{% else %}info{% endif %}">{% if i.level == 'error' %}błąd{% elif i.level == 'warn' %}uwaga{% else %}info{% endif %}</span><span>{{ i.msg }}</span></li>{% endfor %}</ul>
+      {% else %}<div class="notice good">Nie znaleziono problemów. FDS powinien wystartować bez przeszkód.</div>{% endif %}
+    </section>
+  </div>
+</div>
+
+{% else %}
+<nav class="tabs" id="tabs">
+  <a href="#przebieg" data-tab="przebieg">Przebieg</a>
+  <a href="#konsola" data-tab="konsola">Konsola FDS</a>
+  <a href="#wykresy" data-tab="wykresy">Wykresy</a>
+  <a href="#pliki" data-tab="pliki">Pliki{% if files %} <span class="cnt">{{ files|length }}</span>{% endif %}</a>
+  <a href="#koszt" data-tab="koszt">Koszt</a>
+  <a href="#model" data-tab="model">Model</a>
+</nav>
+
+<div class="panel" id="panel-przebieg">
   <section>
-    <h2>Wybierz serwer</h2>
-    <p class="muted">FDS liczy jedną siatkę na jednym procesie. Czas dyktuje najbardziej obciążony proces, więc więcej rdzeni nie zawsze pomaga.</p>
-    <form method="post" action="{% url 'jobs:start' job.public_id %}">{% csrf_token %}
-    <div class="table-scroll"><table>
-      <tr><th></th><th>Serwer</th><th class="num">Procesy</th><th class="num">Czas</th><th class="num">Cena netto</th></tr>
-      {% for o in options %}
-      <tr{% if o.procs == job.procs and o.server == job.server_type %} class="pick"{% endif %}>
-        <td><input type="radio" name="choice" value="{{ o.procs }}:{{ o.server }}" {% if o.procs == job.procs and o.server == job.server_type %}checked{% endif %} onchange="document.getElementById('procs').value='{{ o.procs }}';document.getElementById('server_type').value='{{ o.server }}'"></td>
-        <td>{{ o.server }} · {{ o.vcpu }} vCPU</td>
-        <td class="num">{{ o.procs }}</td>
-        <td class="num">{{ o.hours|floatformat:1 }} h</td>
-        <td class="num">{{ o.pricePln|floatformat:0 }} zł</td>
-      </tr>
+    <h2>Zdarzenia</h2>
+    <ul class="timeline">
+      {% for e in events %}
+      <li class="{% if 'fail' in e.kind or 'lost' in e.kind or e.kind == 'stalled' %}bad{% elif e.kind == 'finished' and job.status == 'done' %}good{% elif forloop.last and job.is_active %}now{% endif %}">
+        <span class="t">{{ e.at|date:"d.m H:i:s" }}</span>
+        <span><span>{% if e.kind == 'uploaded' %}Plik wgrany{% elif e.kind == 'run_file' %}Siatki przypisane do procesów{% elif e.kind == 'start' %}Uruchomiono{% elif e.kind == 'machine_created' %}Maszyna utworzona{% elif e.kind == 'machine_deleted' %}Maszyna usunięta{% elif e.kind == 'agent_finish' or e.kind == 'finished' %}Zakończono{% elif e.kind == 'stop_requested' %}Poproszono o zatrzymanie{% elif e.kind == 'budget_notice' %}Prognoza przekracza wycenę{% elif e.kind == 'download' %}Pobrano plik{% elif e.kind == 'admin_view' %}Podgląd administratora{% else %}{{ e.kind }}{% endif %}</span>{% if e.detail %} <span class="d">{{ e.detail }}</span>{% endif %}</span>
+      </li>
       {% endfor %}
-    </table></div>
-    <input type="hidden" id="procs" name="procs" value="{{ job.procs }}">
-    <input type="hidden" id="server_type" name="server_type" value="{{ job.server_type }}">
-    {% if confidence.note %}<p class="muted">{{ confidence.note }}</p>{% endif %}
-    <div class="actions"><button class="btn primary" type="submit" {% if has_errors %}disabled{% endif %}>Uruchom obliczenia</button>{% if has_errors %}<span class="muted">Najpierw popraw błędy z listy poniżej.</span>{% endif %}</div>
-    </form>
-    {% if tips %}<ul class="tips">{% for t in tips %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+    </ul>
   </section>
+</div>
+
+<div class="panel" id="panel-konsola">
+  <div hx-get="{% url 'jobs:console' job.public_id %}" hx-trigger="load" hx-swap="outerHTML"><div class="console"><div class="console-bar"><span class="dot off"></span><span>ładuję konsolę…</span></div><pre></pre></div></div>
+</div>
+
+<div class="panel" id="panel-wykresy">
   <section>
-    <h2>Sprawdzenie pliku</h2>
-    {% if issues %}
-    <ul class="issues">{% for i in issues %}<li><span><span class="pill {{ i.level }}">{% if i.level == 'error' %}błąd{% elif i.level == 'warn' %}uwaga{% else %}info{% endif %}</span></span><span>{{ i.msg }}</span></li>{% endfor %}</ul>
-    {% else %}<p class="muted">Nie znaleziono problemów.</p>{% endif %}
+    <h2>HRR i czujniki</h2>
+    <p class="muted small">Z plików CSV, które FDS zapisuje w trakcie. Odświeżane co 30 s, dopóki zlecenie się liczy.</p>
+    <div id="charts" class="charts" data-url="{% url 'jobs:charts' job.public_id %}" data-active="{% if job.is_active %}1{% else %}0{% endif %}"></div>
+  </section>
+  <script src="{% static 'charts.js' %}" defer></script>
+</div>
+
+<div class="panel" id="panel-pliki">
+  <div id="files-panel" {% if job.is_active %}hx-get="{% url 'jobs:detail' job.public_id %}" hx-trigger="every 60s" hx-select="#files-panel" hx-swap="outerHTML"{% endif %}>
+  {% if files %}
+  <div class="file-groups">
+    {% for g in file_groups %}
+    <section class="file-group">
+      <h3>{{ g.title }} <small>{{ g.files|length }} {% if g.files|length == 1 %}plik{% else %}plików{% endif %}, {{ g.size|filesizeformat }}</small></h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Plik</th><th class="num">Rozmiar</th><th>Zapisano</th></tr></thead>
+        <tbody>{% for f in g.files %}<tr><td><a class="mono" href="{% url 'jobs:file' job.public_id f.name %}">{{ f.name }}</a></td><td class="num">{{ f.size|filesizeformat }}</td><td class="muted small nowrap">{{ f.mtime|date:"d.m.Y H:i" }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </section>
+    {% endfor %}
+  </div>
+  {% if job.expires_at %}<p class="muted small">Wyniki dostępne do {{ job.expires_at|date:"d.m.Y" }}; potem są trwale usuwane.</p>{% endif %}
+  {% else %}
+  <div class="empty"><h3>Jeszcze nie ma plików</h3><p>{% if job.is_active %}Małe pliki pojawiają się co minutę, duże po zakończeniu obliczeń.{% else %}To zlecenie nie zapisało żadnych plików.{% endif %}</p></div>
+  {% endif %}
+  </div>
+</div>
+
+<div class="panel" id="panel-koszt">
+  <section>
+    <h2>Wycena i koszt</h2>
+    <div class="tiles">
+      <div class="tile"><span class="k">Szacunek przed startem</span><span class="v">{{ job.est_price_pln|floatformat:0 }}<small>zł</small></span><span class="s">{{ job.est_hours|floatformat:1 }} h na {{ job.server_type }}</span></div>
+      {% if job.is_active %}<div class="tile key"><span class="k">Prognoza w trakcie</span><span class="v">{{ job.projected_price_pln|floatformat:0 }}<small>zł</small></span><span class="s">{% if job.projected_hours %}{{ job.projected_hours|floatformat:1 }} h według tempa obliczeń{% else %}tempo jeszcze nieznane{% endif %}</span></div>{% endif %}
+      {% if job.price_pln %}<div class="tile key"><span class="k">Cena końcowa netto</span><span class="v">{{ job.price_pln|floatformat:0 }}<small>zł</small></span><span class="s">{{ job.wall_text }} obliczeń</span></div>{% endif %}
+    </div>
+    <dl class="kv">
+      <dt>Jak liczona</dt><dd>czas pracy serwera od utworzenia do usunięcia maszyny, razy stawka godzinowa dla {{ job.server_type }} i rodzaju konta</dd>
+      <dt>Opłata minimalna</dt><dd>brak</dd>
+      <dt>Płatność</dt><dd>po zakończeniu obliczeń, na podstawie faktury</dd>
+      {% if job.status == 'failed' %}<dt>Błąd w biegu testowym</dt><dd>jeśli FDS zatrzymał się w pierwszych 2 minutach, zlecenie jest bezpłatne</dd>{% endif %}
+    </dl>
   </section>
 </div>
 {% endif %}
+
+<div class="panel" id="panel-model">
+  <div class="grid-2">
+    <section>
+      <h2>Siatki</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>ID</th><th class="num">IJK</th><th class="num">Komórki</th><th class="num">Δx</th><th class="num">Proces</th></tr></thead>
+        <tbody>{% for m in meshes %}<tr><td class="mono">{{ m.id|default:forloop.counter }}</td><td class="num">{{ m.ijk.0 }}×{{ m.ijk.1 }}×{{ m.ijk.2 }}</td><td class="num">{{ m.cells }}</td><td class="num">{{ m.dx|floatformat:3 }} m</td><td class="num">{% if m.mpi is not None %}{{ m.mpi }}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody>
+      </table></div>
+      <dl class="kv">
+        <dt>Komórki</dt><dd class="mono">{{ job.total_cells }}</dd>
+        <dt>Czas symulacji</dt><dd class="mono">{{ job.sim_time|floatformat:0 }} s</dd>
+        <dt>Procesy MPI</dt><dd class="mono">{{ job.procs }}</dd>
+        {% if model.maxLoad %}<dt>Największe obciążenie procesu</dt><dd class="mono">{{ model.maxLoad }} komórek</dd>{% endif %}
+      </dl>
+    </section>
+    {% if job.status != 'draft' %}
+    <section>
+      <h2>Sprawdzenie pliku</h2>
+      {% if issues %}
+      <ul class="issues">{% for i in issues %}<li class="{{ i.level }}"><span class="pill {% if i.level == 'error' %}error{% elif i.level == 'warn' %}warn{% else %}info{% endif %}">{% if i.level == 'error' %}błąd{% elif i.level == 'warn' %}uwaga{% else %}info{% endif %}</span><span>{{ i.msg }}</span></li>{% endfor %}</ul>
+      {% else %}<p class="muted">Nie znaleziono problemów.</p>{% endif %}
+      <p><a href="{% url 'jobs:file' job.public_id job.filename %}">Pobierz plik wejściowy</a></p>
+    </section>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function(){
+  var tabs=document.querySelectorAll('#tabs a'),panels=document.querySelectorAll('.panel');
+  function show(name){var ok=false;tabs.forEach(function(a){var on=a.dataset.tab===name;if(on)ok=true;a.toggleAttribute('aria-current',on);if(on)a.setAttribute('aria-current','page');});
+    if(!ok){name=tabs[0].dataset.tab;tabs[0].setAttribute('aria-current','page');}
+    panels.forEach(function(p){p.classList.toggle('on',p.id==='panel-'+name)});
+    window.dispatchEvent(new Event('resize'));}
+  document.querySelectorAll('[data-tab]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();history.replaceState(null,'','#'+a.dataset.tab);show(a.dataset.tab);});});
+  show((location.hash||'#').slice(1));
+})();
+</script>
 {% endblock %}

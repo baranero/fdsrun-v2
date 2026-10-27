@@ -42,7 +42,7 @@ def two_factor_check(request):
     if request.method == "POST" and user:
         code = request.POST.get("code", "")
         if twofactor.verify(user.totp_secret, code) or twofactor.use_backup_code(user, code):
-            nxt = request.session.pop("pre_2fa_next", None) or reverse("jobs:list")
+            nxt = request.session.pop("pre_2fa_next", None) or reverse("jobs:dashboard")
             request.session.pop("pre_2fa_user", None)
             login(request, user)
             return redirect(nxt)
@@ -80,14 +80,14 @@ def two_factor_setup(request):
 
 def register(request):
     if request.user.is_authenticated:
-        return redirect("jobs:list")
+        return redirect("jobs:dashboard")
     form = RegisterForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.save()
         login(request, user)          # login first: the token depends on last_login
         send_confirmation(user)
         messages.info(request, "Konto założone. Wysłaliśmy e-mail z linkiem potwierdzającym adres — kliknij go, żeby uruchamiać obliczenia.")
-        return redirect("jobs:list")
+        return redirect("jobs:dashboard")
     return render(request, "accounts/register.html", {"form": form})
 
 
@@ -112,6 +112,6 @@ def confirm_email(request, uidb64, token):
             user.email_confirmed = True
             user.save(update_fields=["email_confirmed"])
         messages.success(request, "Adres e-mail potwierdzony.")
-        return redirect("jobs:list")
+        return redirect("jobs:dashboard")
     messages.error(request, "Link potwierdzający jest nieprawidłowy lub wygasł.")
     return redirect("home")

@@ -21,7 +21,7 @@
     const X = x => padL + (x / xMax) * (W - padL - padR);
     const Y = y => padT + (1 - (y - yMin) / (yMax - yMin)) * (H - padT - padB);
     ctx.clearRect(0, 0, W, H);
-    ctx.font = '11px IBM Plex Mono, monospace';
+    ctx.font = '11px JetBrains Mono, monospace';
     ctx.fillStyle = css('--muted'); ctx.strokeStyle = css('--line'); ctx.lineWidth = 1;
     for (let v = yMin; v <= yMax + 1e-9; v += step) {
       const y = Y(v);
@@ -38,7 +38,7 @@
       s.points.forEach((p, j) => { const x = X(p[0]), y = Y(p[1]); j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
       ctx.stroke();
     });
-    ctx.fillStyle = css('--fg'); ctx.font = '600 13px IBM Plex Sans, sans-serif'; ctx.textAlign = 'left';
+    ctx.fillStyle = css('--ink'); ctx.font = '600 13px Inter, sans-serif'; ctx.textAlign = 'left';
     ctx.fillText(title, padL, 16);
   }
 

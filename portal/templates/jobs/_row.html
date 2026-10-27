@@ -1,0 +1,16 @@
+<tr>
+  <td><a class="strong" href="{% url 'jobs:detail' j.public_id %}">{{ j.name }}</a><div class="muted small mono">{{ j.public_id }}</div></td>
+  <td><span class="pill {{ j.status }}">{{ j.get_status_display }}</span></td>
+  <td>
+    {% if j.is_active %}
+      <div class="cell-progress"><div class="bar"><span style="width:{{ j.progress_pct }}%"></span></div><span class="pct">{{ j.progress_pct }}%{% if j.eta_hours is not None %}, zostało {{ j.eta_hours|floatformat:1 }} h{% endif %}</span></div>
+    {% elif j.status == 'done' %}
+      <div class="cell-progress"><div class="bar done"><span style="width:100%"></span></div><span class="pct">{{ j.wall_text }}</span></div>
+    {% elif j.status == 'draft' %}<span class="muted small">nieuruchomione</span>
+    {% else %}<span class="muted small">{{ j.progress_pct }}%</span>{% endif %}
+  </td>
+  <td class="num">{{ j.total_cells }}</td>
+  <td class="num">{{ j.procs }} <span class="muted">{{ j.server_type }}</span></td>
+  <td class="num">{% if j.price_pln %}{{ j.price_pln|floatformat:0 }} zł{% elif j.is_active and j.projected_hours %}~{{ j.projected_price_pln|floatformat:0 }} zł{% else %}<span class="muted">~{{ j.est_price_pln|floatformat:0 }} zł</span>{% endif %}</td>
+  <td class="muted small nowrap">{{ j.created_at|date:"d.m.Y H:i" }}</td>
+</tr>

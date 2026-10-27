@@ -1,12 +1,33 @@
 {% extends "base.html" %}
 {% block title %}Nowe zlecenie · fdsrun{% endblock %}
+{% block main_class %}narrow{% endblock %}
 {% block content %}
-<section class="card" style="max-width:560px">
-  <h1>Nowe zlecenie</h1>
-  <p class="muted">Wgraj plik .fds wyeksportowany z PyroSim. Przeanalizuję go i pokażę czas, koszt i ewentualne błędy, zanim cokolwiek się uruchomi.</p>
-  <form method="post" enctype="multipart/form-data">{% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn primary" type="submit">Przeanalizuj plik</button>
-  </form>
-</section>
+<div class="page-head"><div><h1>Nowe zlecenie</h1><p class="sub">Wgraj plik .fds z PyroSim. Portal sprawdzi go i pokaże czas oraz cenę, zanim cokolwiek się uruchomi.</p></div></div>
+<form method="post" enctype="multipart/form-data" class="card" id="upload">{% csrf_token %}
+  <label for="id_file" class="drop" id="drop">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36"><path d="M12 16V4m0 0 4 4m-4-4-4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+    <span class="drop-main">Przeciągnij plik .fds tutaj albo kliknij, żeby wybrać</span>
+    <span class="muted small" id="drop-name">Maksymalnie {{ max_mb }} MB. Plik zostaje tylko w Twoim koncie.</span>
+    <input type="file" name="file" id="id_file" accept=".fds" required>
+  </label>
+  {% if form.file.errors %}<ul class="errorlist">{% for e in form.file.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  <div class="actions"><button class="btn primary lg" type="submit" id="go">Przeanalizuj plik</button><span class="muted small">Analiza trwa kilka sekund. Nic się jeszcze nie uruchamia i nic nie kosztuje.</span></div>
+</form>
+<style>
+.drop { display: grid; justify-items: center; gap: 8px; padding: 36px 20px; border: 2px dashed var(--line-strong); border-radius: var(--r-lg); background: var(--sunken); color: var(--ink-2); cursor: pointer; text-align: center; transition: border-color .12s, background .12s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.drop-main { font-weight: 500; font-size: 15px; }
+.drop.has .drop-main { color: var(--accent-ink); }
+</style>
+<script>
+(function(){var d=document.getElementById('drop'),i=document.getElementById('id_file'),n=document.getElementById('drop-name'),m=d.querySelector('.drop-main');
+function set(f){if(!f)return;m.textContent=f.name;n.textContent=(f.size/1024/1024).toFixed(2)+' MB — kliknij „Przeanalizuj plik”';d.classList.add('has');}
+i.addEventListener('change',function(){set(i.files[0])});
+['dragenter','dragover'].forEach(function(e){d.addEventListener(e,function(ev){ev.preventDefault();d.classList.add('over')})});
+['dragleave','drop'].forEach(function(e){d.addEventListener(e,function(ev){ev.preventDefault();d.classList.remove('over')})});
+d.addEventListener('drop',function(ev){if(ev.dataTransfer.files.length){i.files=ev.dataTransfer.files;set(i.files[0]);}});
+document.getElementById('upload').addEventListener('submit',function(){var b=document.getElementById('go');b.disabled=true;b.textContent='Analizuję…';});
+})();
+</script>
 {% endblock %}

@@ -129,6 +129,15 @@ class Job(models.Model):
         return self.est_price_pln * self.projected_hours / self.est_hours
 
     @property
+    def wall_text(self):
+        """Wall time as '1 h 58 min' / '12 min' / '45 s'."""
+        s = int(self.wall_seconds or 0)
+        if s < 60:
+            return f"{s} s"
+        h, m = divmod(s // 60, 60)
+        return f"{h} h {m:02d} min" if h else f"{m} min"
+
+    @property
     def progress_pct(self):
         if not self.sim_time:
             return 0

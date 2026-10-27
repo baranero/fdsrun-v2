@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Logowanie · fdsrun{% endblock %}
 {% block content %}
-<section class="card" style="max-width:480px">
-  <h1>Zaloguj się</h1>
+<section class="auth">
+  <div><h1>Zaloguj się</h1><p class="muted">Obliczenia FDS w chmurze. Płatność po wynikach.</p></div>
   <form method="post">{% csrf_token %}
-    {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-    <p><label for="id_username">E-mail</label><input type="email" name="username" id="id_username" required autofocus></p>
-    <p><label for="id_password">Hasło</label><input type="password" name="password" id="id_password" required></p>
-    <button class="btn primary" type="submit">Zaloguj</button>
+    {% if form.non_field_errors %}<ul class="errorlist" style="margin-bottom:12px">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    <p><label for="id_username">E-mail</label><input type="email" name="username" id="id_username" required autofocus autocomplete="username"></p>
+    <p><label for="id_password">Hasło</label><input type="password" name="password" id="id_password" required autocomplete="current-password"></p>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="btn primary lg" type="submit">Zaloguj</button>
   </form>
-  <p class="muted">Nie masz konta? <a href="{% url 'accounts:register' %}">Załóż je</a>. <a href="{% url 'accounts:password_reset' %}">Nie pamiętasz hasła?</a></p>
+  <p class="muted small">Nie masz konta? <a href="{% url 'accounts:register' %}">Załóż je</a>. <a href="{% url 'accounts:password_reset' %}">Nie pamiętasz hasła?</a></p>
 </section>
 {% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Pulpit · fdsrun{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Pulpit</h1><p class="sub">{% if active %}{{ active|length }} {% if active|length == 1 %}zlecenie liczy się{% else %}zlecenia liczą się{% endif %} teraz.{% else %}Nic się teraz nie liczy.{% endif %}</p></div>
+  <a class="btn primary" href="{% url 'jobs:new' %}">Nowe zlecenie</a>
+</div>
+
+<div class="tiles">
+  <div class="tile"><span class="k">W toku</span><span class="v">{{ active|length }}</span><span class="s">zleceń liczy się teraz</span></div>
+  <div class="tile"><span class="k">Ten miesiąc</span><span class="v">{{ month_jobs }}<small>zleceń</small></span><span class="s">{{ month_hours|floatformat:1 }} h obliczeń</span></div>
+  <div class="tile key"><span class="k">Wydatki w tym miesiącu</span><span class="v">{{ spent|floatformat:0 }}<small>zł netto</small></span><span class="s">za zakończone zlecenia</span></div>
+  <div class="tile"><span class="k">Łącznie</span><span class="v">{{ total_jobs }}</span><span class="s">uruchomionych zleceń</span></div>
+</div>
+
+{% if active %}
+<section>
+  <h2>Liczy się teraz</h2>
+  <div class="table-wrap" hx-get="{% url 'jobs:dashboard' %}" hx-trigger="every 15s" hx-select=".table-wrap" hx-swap="outerHTML">
+  <table>
+    <thead><tr><th>Zlecenie</th><th>Status</th><th>Postęp</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Start</th></tr></thead>
+    <tbody>{% for j in active %}{% include "jobs/_row.html" %}{% endfor %}</tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+{% if drafts %}
+<section>
+  <h2>Przeanalizowane, nieuruchomione</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Zlecenie</th><th>Status</th><th>Postęp</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Wgrano</th></tr></thead>
+    <tbody>{% for j in drafts %}{% include "jobs/_row.html" %}{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+
+<section>
+  <h2>Ostatnio zakończone</h2>
+  {% if recent %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Zlecenie</th><th>Status</th><th>Czas</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Utworzono</th></tr></thead>
+    <tbody>{% for j in recent %}{% include "jobs/_row.html" %}{% endfor %}</tbody>
+  </table></div>
+  <p><a href="{% url 'jobs:list' %}">Wszystkie zlecenia</a></p>
+  {% else %}
+  <div class="empty"><h3>Jeszcze nic nie policzono</h3><p>Wgraj plik .fds — zobaczysz czas i cenę, zanim cokolwiek się uruchomi.</p><a class="btn primary" href="{% url 'jobs:new' %}">Nowe zlecenie</a></div>
+  {% endif %}
+</section>
+{% endblock %}

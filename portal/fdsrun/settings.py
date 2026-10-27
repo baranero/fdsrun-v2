@@ -88,7 +88,7 @@ else:
 
 AUTH_USER_MODEL = "accounts.User"
 LOGIN_URL = "accounts:login"
-LOGIN_REDIRECT_URL = "jobs:list"
+LOGIN_REDIRECT_URL = "jobs:dashboard"
 LOGOUT_REDIRECT_URL = "home"
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -103,6 +103,9 @@ LOCALE_PATHS = [BASE_DIR / "locale"]
 TIME_ZONE = "Europe/Warsaw"
 USE_I18N = True
 USE_TZ = True
+USE_THOUSAND_SEPARATOR = True
+THOUSAND_SEPARATOR = "\u202f"
+NUMBER_GROUPING = 3
 
 STATIC_URL = "/static/"
 STATIC_ROOT = env("STATIC_ROOT", str(BASE_DIR / "staticfiles"))

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Cennik i FAQ · fdsrun{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Cennik i najczęstsze pytania</h1><p class="sub">Płacisz za rzeczywisty czas obliczeń, po ich zakończeniu. Cenę widzisz przed startem.</p></div></div>
+
+<section>
+  <h2>Jak liczona jest cena</h2>
+  <p>Każde zlecenie dostaje własny serwer na czas obliczeń. Cena to czas pracy tego serwera pomnożony przez stawkę godzinową, która zależy od wielkości serwera i rodzaju konta. Po wgraniu pliku .fds portal szacuje czas na podstawie liczby komórek, czasu symulacji i fizyki modelu — i pokazuje cenę dla kilku wariantów serwera, zanim cokolwiek się uruchomi.</p>
+  <div class="tiles">
+    <div class="tile"><span class="k">Konto firmowe</span><span class="v">stawka pełna</span><span class="s">faktura VAT po zakończeniu</span></div>
+    <div class="tile"><span class="k">Konto studenckie</span><span class="v">−50%</span><span class="s">po potwierdzeniu statusu</span></div>
+    <div class="tile"><span class="k">Opłata minimalna</span><span class="v">brak</span><span class="s">nawet za 10-minutowy bieg testowy</span></div>
+  </div>
+  <p class="muted small">Szacunek ma dokładność około ±15% na modelach, na których kalibrujemy portal. Jeśli obliczenia potrwają dłużej, cena rośnie proporcjonalnie — portal informuje o tym w trakcie i nigdy nie przerywa obliczeń z powodu kosztu.</p>
+</section>
+
+<section>
+  <h2>Pytania</h2>
+  <div class="faq">
+    <details><summary>Kiedy płacę?</summary><p>Po zakończeniu obliczeń. Przed pierwszym zleceniem podajesz dane do faktury i weryfikujesz kartę (bez obciążenia). Po każdym zleceniu dostajesz fakturę e-mailem; firmy mogą płacić przelewem w terminie 14 dni.</p></details>
+    <details><summary>Co jeśli FDS się wysypie?</summary><p>Pierwsze dwie minuty każdego zlecenia to bieg testowy. Jeśli FDS zatrzyma się z błędem w tym czasie, zlecenie kończy się bez opłaty, a Ty widzisz komunikat błędu i podpowiedź, co poprawić.</p></details>
+    <details><summary>Jak długo przechowujecie wyniki?</summary><p>{{ pricing.results_days }} dni od zakończenia obliczeń. Potem pliki są trwale usuwane. Plik wejściowy .fds i wykresy zostają w historii zlecenia.</p></details>
+    <details><summary>Ile procesów wybrać?</summary><p>FDS liczy jedną siatkę na jednym procesie MPI. Czas obliczeń dyktuje najbardziej obciążona siatka, więc więcej rdzeni nie zawsze przyspiesza. Portal pokazuje dla Twojego pliku warianty od najtańszego do najszybszego i wskazuje, który ma sens.</p></details>
+    <details><summary>Czy mogę zatrzymać obliczenia?</summary><p>Tak, w każdej chwili. FDS zapisuje stan do tego momentu, wyniki są do pobrania, a płacisz tylko za wykorzystany czas.</p></details>
+    <details><summary>Gdzie liczone są moje modele?</summary><p>Na serwerach w Unii Europejskiej (Niemcy, Finlandia). Każde zlecenie ma własny, jednorazowy serwer, który jest usuwany po zakończeniu. Nikt poza Tobą nie ma dostępu do plików; dostęp administratora jest rejestrowany.</p></details>
+    <details><summary>Jaką wersję FDS uruchamiacie?</summary><p>FDS 6.10.1 z oficjalnej paczki NIST, z Intel MPI. Na życzenie uruchomimy inną wersję.</p></details>
+  </div>
+</section>
+{% endblock %}

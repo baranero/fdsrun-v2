@@ -4,6 +4,7 @@ from .views import page
 
 app_name = "legal"
 urlpatterns = [
+    path("cennik/", page("cennik"), name="pricing"),
     path("regulamin/", page("regulamin"), name="terms"),
     path("polityka-prywatnosci/", page("prywatnosc"), name="privacy"),
     path("cookies/", page("cookies"), name="cookies"),

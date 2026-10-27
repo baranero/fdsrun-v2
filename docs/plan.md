@@ -27,6 +27,9 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 - [ ] Bramka: klatkaD liczy się od wysłania pliku do pobrania wyników (ponowny start 27.10 przez `job_retry`)
 
 ## Etap 2 — konta i zlecenia
+- [x] Nowy wygląd (27.10): pasek menu, paleta, tryb ciemny, responsywność; pulpit, lista z filtrami, ekran zlecenia z zakładkami, konsola FDS na żywo, strona główna i cennik/FAQ (dokument „analiza UX i plan nowego interfejsu”)
+- [ ] Pobieranie: archiwa, wznawianie, linki tymczasowe
+- [ ] Foldery projektów; logowanie Google/GitHub/Microsoft; dane do faktury w koncie
 - [x] Reset hasła, potwierdzenie e-maila (wymagane przed startem obliczeń)
 - [x] 2FA (aplikacja TOTP, kody zapasowe)
 - [x] Wykresy HRR/DEVC na żywo z plików CSV

@@ -1,11 +1,38 @@
 {% extends "base.html" %}
+{% block title %}fdsrun — obliczenia FDS w chmurze{% endblock %}
 {% block content %}
-<section>
-  <div class="eyebrow">wersja {{ ENVIRONMENT }}</div>
-  <h1>Obliczenia FDS w chmurze</h1>
-  <p class="muted">Wgraj plik .fds z PyroSim, zobacz czas i koszt, uruchom obliczenia na własnej maszynie i śledź je na żywo.</p>
+<div class="hero">
+  <h1>Obliczenia FDS w chmurze. Cenę znasz przed startem, płacisz po wynikach.</h1>
+  <p>Wgraj plik .fds z PyroSim. Portal sprawdzi go, policzy czas i cenę dla kilku serwerów, uruchomi obliczenia na własnej maszynie i pokaże konsolę FDS na żywo. Wyniki pobierzesz jednym plikiem.</p>
   <div class="actions">
-    {% if user.is_authenticated %}<a class="btn primary" href="{% url 'jobs:new' %}">Nowe zlecenie</a>{% else %}<a class="btn primary" href="{% url 'accounts:register' %}">Załóż konto</a><a class="btn secondary" href="{% url 'accounts:login' %}">Zaloguj</a>{% endif %}
+    {% if user.is_authenticated %}<a class="btn primary lg" href="{% url 'jobs:new' %}">Nowe zlecenie</a><a class="btn lg" href="{% url 'jobs:dashboard' %}">Pulpit</a>{% else %}<a class="btn primary lg" href="{% url 'accounts:register' %}">Załóż konto</a><a class="btn lg" href="{% url 'legal:pricing' %}">Jak liczona jest cena</a>{% endif %}
+  </div>
+</div>
+
+<div class="instrument demo" aria-hidden="true">
+  <div class="row"><span class="pill running">Liczy się</span><span class="msg">klatkaD_izoterma, 8 procesów, koniec ok. 17:40</span></div>
+  <div class="readouts">
+    <div class="readout"><span class="k">Krok</span><span class="v">14 820</span><span class="s">Δt = 0.0142 s</span></div>
+    <div class="readout"><span class="k">Czas symulacji</span><span class="v">212.4<small>/ 600 s</small></span><span class="s">35%</span></div>
+    <div class="readout key"><span class="k">Pozostało</span><span class="v">3.6<small>h</small></span><span class="s">liczy się 1 h 58 min</span></div>
+    <div class="readout key"><span class="k">Przewidywana cena</span><span class="v">318<small>zł</small></span><span class="s">szacunek przed startem 305 zł</span></div>
+  </div>
+  <div class="track"><span style="width:35%"></span></div>
+</div>
+
+<div class="steps">
+  <div class="step"><h3>Wyślij plik</h3><p>Portal czyta siatki, czas symulacji, wentylację i źródła ognia, wskazuje błędy, które zatrzymałyby FDS, i naprawia przypisanie siatek do procesów.</p></div>
+  <div class="step"><h3>Zobacz czas i cenę</h3><p>Dla każdego serwera: ile procesów, ile godzin, ile złotych. Wybierasz najtańszy albo najszybszy wariant. Dokładność szacunku około ±15%.</p></div>
+  <div class="step"><h3>Śledź i pobierz</h3><p>Konsola FDS, wykresy HRR i czujników na żywo, e-mail po zakończeniu. Wyniki jako jedno archiwum albo tylko CSV — z linkiem do pobierania wznawialnego.</p></div>
+</div>
+
+<section>
+  <h2>Dla kogo</h2>
+  <div class="features">
+    <div><h3>Biura projektowe i rzeczoznawcy</h3><p>Kilkanaście scenariuszy miesięcznie bez własnej stacji obliczeniowej. Faktura VAT po każdym zleceniu, płatność przelewem w terminie.</p></div>
+    <div><h3>Studenci i doktoranci</h3><p>Połowa stawki po potwierdzeniu statusu. Bieg testowy bez opłaty, gdy FDS zatrzyma się na błędzie w pliku.</p></div>
+    <div><h3>Firmy z zagranicy</h3><p>Angielska wersja portalu, ceny w euro, faktury bez polskiego VAT dla firm z UE i spoza niej.</p></div>
+    <div><h3>Bezpieczeństwo danych</h3><p>Jednorazowy serwer na każde zlecenie, usuwany po zakończeniu. Serwery w UE, dostęp administratora rejestrowany, wyniki usuwane po 30 dniach.</p></div>
   </div>
 </section>
 {% endblock %}

@@ -1,12 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Rejestracja · fdsrun{% endblock %}
 {% block content %}
-<section class="card" style="max-width:480px">
-  <h1>Załóż konto</h1>
+<section class="auth">
+  <div><h1>Załóż konto</h1><p class="muted">Dane do faktury podasz dopiero przed pierwszym uruchomieniem obliczeń.</p></div>
   <form method="post">{% csrf_token %}
     {{ form.as_p }}
-    <p class="muted">Zakładając konto, akceptujesz <a href="{% url 'legal:terms' %}">regulamin</a>, <a href="{% url 'legal:privacy' %}">politykę prywatności</a> i, dla kont firmowych, <a href="{% url 'legal:dpa' %}">umowę powierzenia danych</a>.</p>
-    <button class="btn primary" type="submit">Załóż konto</button>
+    <p class="muted small">Konto firmowe: faktura VAT, płatność przelewem w terminie. Konto studenckie: połowa stawki po potwierdzeniu statusu. Konto prywatne: płatność kartą.</p>
+    <button class="btn primary lg" type="submit">Załóż konto</button>
+    <p class="muted small" style="margin-top:12px">Zakładając konto, akceptujesz <a href="{% url 'legal:terms' %}">regulamin</a> i <a href="{% url 'legal:privacy' %}">politykę prywatności</a>; dla kont firmowych także <a href="{% url 'legal:dpa' %}">umowę powierzenia danych</a>.</p>
   </form>
+  <p class="muted small">Masz już konto? <a href="{% url 'accounts:login' %}">Zaloguj się</a>.</p>
 </section>
 {% endblock %}

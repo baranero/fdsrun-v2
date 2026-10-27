@@ -1,26 +1,28 @@
 {% extends "base.html" %}
 {% block title %}Zlecenia · fdsrun{% endblock %}
 {% block content %}
-<section>
-  <div class="actions" style="justify-content:space-between"><h1>Zlecenia</h1><a class="btn primary" href="{% url 'jobs:new' %}">Nowe zlecenie</a></div>
-  {% if jobs %}
-  <div class="table-scroll"><table>
-    <tr><th>Nr</th><th>Nazwa</th><th>Status</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Szacunek</th><th class="num">Postęp</th><th>Utworzono</th></tr>
-    {% for j in jobs %}
-    <tr>
-      <td class="mono"><a href="{% url 'jobs:detail' j.public_id %}">{{ j.public_id }}</a></td>
-      <td>{{ j.name }}</td>
-      <td><span class="pill {{ j.status }}">{{ j.get_status_display }}</span></td>
-      <td class="num">{{ j.total_cells }}</td>
-      <td class="num">{{ j.procs }} · {{ j.server_type }}</td>
-      <td class="num">{{ j.est_hours|floatformat:1 }} h</td>
-      <td class="num">{% if j.is_active %}{{ j.progress_pct }}%{% elif j.status == 'done' %}100%{% else %}—{% endif %}</td>
-      <td>{{ j.created_at|date:"d.m.Y H:i" }}</td>
-    </tr>
-    {% endfor %}
-  </table></div>
-  {% else %}
-  <p class="muted">Nie masz jeszcze zleceń. Wgraj pierwszy plik .fds.</p>
-  {% endif %}
-</section>
+<div class="page-head">
+  <div><h1>Zlecenia</h1><p class="sub">Wszystkie Twoje obliczenia, od analizy pliku po pobranie wyników.</p></div>
+  <a class="btn primary" href="{% url 'jobs:new' %}">Nowe zlecenie</a>
+</div>
+
+<form method="get" class="actions" style="justify-content:space-between">
+  <div class="switch">{% for k, label in filters %}<a href="?f={{ k }}{% if q %}&q={{ q|urlencode }}{% endif %}" {% if k == flt %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</div>
+  <div class="field-row"><input type="hidden" name="f" value="{{ flt }}"><input type="search" name="q" value="{{ q }}" placeholder="Szukaj po nazwie, numerze lub CHID" style="max-width:320px"><button class="btn" type="submit">Szukaj</button></div>
+</form>
+
+{% if jobs %}
+<div class="table-wrap" {% if poll %}hx-get="{{ request.get_full_path }}" hx-trigger="every 15s" hx-select=".table-wrap" hx-swap="outerHTML"{% endif %}>
+<table>
+  <thead><tr><th>Zlecenie</th><th>Status</th><th>Postęp</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Utworzono</th></tr></thead>
+  <tbody>{% for j in jobs %}{% include "jobs/_row.html" %}{% endfor %}</tbody>
+</table>
+</div>
+{% else %}
+<div class="empty">
+  <h3>{% if q or flt %}Nic nie pasuje do filtra{% else %}Nie masz jeszcze zleceń{% endif %}</h3>
+  <p>{% if q or flt %}Zmień filtr albo wyczyść wyszukiwanie.{% else %}Wgraj plik .fds — zobaczysz czas i cenę, zanim cokolwiek się uruchomi.{% endif %}</p>
+  {% if q or flt %}<a class="btn" href="{% url 'jobs:list' %}">Pokaż wszystkie</a>{% else %}<a class="btn primary" href="{% url 'jobs:new' %}">Nowe zlecenie</a>{% endif %}
+</div>
+{% endif %}
 {% endblock %}
