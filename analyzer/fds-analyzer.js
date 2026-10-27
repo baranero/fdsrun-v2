@@ -414,7 +414,11 @@
     const n = FLOW.samples, T = Math.max(simTime, 1e-9);
     let integral = 0, uMax = 0;
     const share = { floor: 0, stack: 0, fire: 0, forced: 0 };
-    for (let i = 0; i < n; i++) { const { u, key } = uAt((i + 0.5) * T / n); integral += u * T / n; share[key] += u * T / n; uMax = Math.max(uMax, u); }
+    const cumulative = [];
+    for (let i = 0; i < n; i++) { const { u, key } = uAt((i + 0.5) * T / n); integral += u * T / n; share[key] += u * T / n; uMax = Math.max(uMax, u); cumulative.push(integral); }
+    // cumulative share of the predicted step count at 20 evenly spaced simulation times:
+    // lets the portal turn "steps done so far" into "steps left" while the job runs
+    const profile = Array.from({ length: 20 }, (_, j) => round(cumulative[Math.min(n - 1, Math.floor((j + 1) * n / 20) - 1)] / integral, 4));
     const driver = Object.keys(share).reduce((a, b) => (share[b] > share[a] ? b : a));
     const topForced = forced.reduce((a, b) => (a && a.v >= b.v ? a : b), null);
     return {
@@ -428,6 +432,7 @@
       largestFire: Math.round(largest),
       driver,                             // what limits the time step most of the run
       integral,                           // ∫u dt [m]
+      profile,                            // cumulative fraction of steps at t = T/20, 2T/20, …, T
     };
   }
 
