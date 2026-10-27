@@ -29,6 +29,6 @@
   {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
   {% block content %}{% endblock %}
 </main>
-<footer class="foot">fdsrun · obliczenia FDS w chmurze · serwery w UE</footer>
+<footer class="foot">fdsrun · obliczenia FDS w chmurze · serwery w UE · <a href="{% url 'legal:terms' %}">Regulamin</a> · <a href="{% url 'legal:privacy' %}">Prywatność</a> · <a href="{% url 'legal:cookies' %}">Cookies</a> · <a href="{% url 'legal:dpa' %}">Umowa powierzenia</a></footer>
 </body>
 </html>

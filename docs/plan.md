@@ -46,7 +46,7 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 - [x] Użytkownicy: rodzaj konta, zaufany, limit, blokada; maszyny z ręcznym usuwaniem
 - [x] Dziennik dostępu admina do plików klientów
 - [x] Cena rzeczywista zlecenia = koszt serwera × mnożnik (zapisywana po usunięciu maszyny)
-- [ ] Projekty regulaminu, polityki prywatności, DPA
+- [x] Projekty regulaminu, polityki prywatności, cookies i DPA (`/regulamin/` itd.) — do sprawdzenia przez prawnika; dane firmy (adres, NIP) do uzupełnienia w sekretach COMPANY_*
 
 ## Etap 5 — angielski, testy, Smokeview w przeglądarce
 ## Etap 6 — start

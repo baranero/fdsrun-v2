@@ -14,6 +14,7 @@ Ja ich nie widzę; używają ich tylko workflow na GitHubie i serwer.
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | Brevo (brevo.com, serwery w UE, 300 maili dziennie za darmo): SMTP & API → klucze SMTP. Host `smtp-relay.brevo.com`, port `587`, login = e-mail konta Brevo, hasło = klucz SMTP | etap 2 |
 | `DEFAULT_FROM_EMAIL` | np. `fdsrun <noreply@fdsrun.com>` — nadawcę trzeba potwierdzić w Brevo (Senders) | etap 2 |
 | `ADMIN_EMAIL` | adres na alarmy o maszynach, np. `biuro@fp-solutions.pl` | etap 2 |
+| `COMPANY_NAME`, `COMPANY_ADDRESS`, `COMPANY_NIP`, `COMPANY_EMAIL` | dane firmy do regulaminu, polityki prywatności i faktur | przed etapem 3 |
 
 ## Domena
 

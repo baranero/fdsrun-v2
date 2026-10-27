@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "apps.jobs",
     "apps.compute",
     "apps.panel",
+    "apps.legal",
 ]
 
 MIDDLEWARE = [
@@ -165,4 +166,12 @@ LOGGING = {
     "disable_existing_loggers": False,
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": env("LOG_LEVEL", "INFO")},
+}
+
+# Company details for invoices and legal pages (fill in before launch — docs/sekrety.md)
+COMPANY = {
+    "name": env("COMPANY_NAME", "FP Solutions Jakub Baran"),
+    "address": env("COMPANY_ADDRESS", "[adres siedziby]"),
+    "nip": env("COMPANY_NIP", "[NIP]"),
+    "email": env("COMPANY_EMAIL", "biuro@fp-solutions.pl"),
 }

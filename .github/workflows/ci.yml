@@ -98,6 +98,10 @@ jobs:
           APP_EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
           APP_DEFAULT_FROM_EMAIL: ${{ secrets.DEFAULT_FROM_EMAIL }}
           APP_ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          APP_COMPANY_NAME: ${{ secrets.COMPANY_NAME }}
+          APP_COMPANY_ADDRESS: ${{ secrets.COMPANY_ADDRESS }}
+          APP_COMPANY_NIP: ${{ secrets.COMPANY_NIP }}
+          APP_COMPANY_EMAIL: ${{ secrets.COMPANY_EMAIL }}
         run: python3 deploy/push-update.py
       - name: Record the address in the "Adresy środowisk" issue
         if: steps.server.outputs.ip != ''

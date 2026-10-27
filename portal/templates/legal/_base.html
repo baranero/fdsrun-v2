@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<article class="legal">
+  <div class="eyebrow">dokument · projekt do weryfikacji przez prawnika · wersja z {{ version_date }}</div>
+  <h1>{% block doc_title %}{% endblock %}</h1>
+  {% block doc %}{% endblock %}
+  <p class="muted">Usługodawca: {{ company.name }}, {{ company.address }}, NIP {{ company.nip }}, e-mail {{ company.email }}.</p>
+</article>
+{% endblock %}

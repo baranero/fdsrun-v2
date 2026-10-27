@@ -1,0 +1,12 @@
+{% extends "legal/_base.html" %}
+{% block title %}Cookies · fdsrun{% endblock %}
+{% block doc_title %}Informacja o plikach cookies{% endblock %}
+{% block doc %}
+<p>Serwis zapisuje w przeglądarce tylko pliki niezbędne do działania. Nie wymagają one zgody.</p>
+<table><tr><th>Nazwa</th><th>Cel</th><th>Czas życia</th></tr>
+<tr><td>sessionid</td><td>utrzymanie zalogowania</td><td>2 tygodnie lub do wylogowania</td></tr>
+<tr><td>csrftoken</td><td>ochrona formularzy przed podrobieniem żądań</td><td>1 rok</td></tr>
+<tr><td>django_language</td><td>zapamiętanie wybranego języka</td><td>1 rok</td></tr>
+</table>
+<p>Nie używamy cookies reklamowych, śledzących ani analitycznych firm trzecich. Pliki te możesz usunąć w ustawieniach przeglądarki; po usunięciu cookie sesji trzeba zalogować się ponownie.</p>
+{% endblock %}

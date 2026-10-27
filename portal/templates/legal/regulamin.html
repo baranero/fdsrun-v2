@@ -1,0 +1,81 @@
+{% extends "legal/_base.html" %}
+{% block title %}Regulamin · fdsrun{% endblock %}
+{% block doc_title %}Regulamin serwisu fdsrun{% endblock %}
+{% block doc %}
+<h2>§1. Definicje</h2>
+<ol>
+<li><b>Serwis</b> — portal internetowy fdsrun.com prowadzony przez Usługodawcę.</li>
+<li><b>Usługodawca</b> — {{ company.name }}, {{ company.address }}, NIP {{ company.nip }}.</li>
+<li><b>Użytkownik</b> — osoba fizyczna, prawna lub jednostka organizacyjna, która założyła Konto.</li>
+<li><b>Konsument</b> — Użytkownik będący osobą fizyczną, zawierający umowę niezwiązaną bezpośrednio z działalnością gospodarczą lub zawodową.</li>
+<li><b>Zlecenie</b> — jednorazowa usługa obliczeniowa: uruchomienie programu FDS (Fire Dynamics Simulator, NIST) dla pliku wejściowego dostarczonego przez Użytkownika na maszynie wirtualnej udostępnionej przez Usługodawcę.</li>
+<li><b>Model</b> — plik wejściowy .fds i wszystkie dane w nim zawarte; pozostaje własnością Użytkownika.</li>
+<li><b>Wyniki</b> — pliki wytworzone przez FDS w trakcie Zlecenia.</li>
+</ol>
+
+<h2>§2. Postanowienia ogólne</h2>
+<ol>
+<li>Regulamin określa zasady świadczenia usług drogą elektroniczną w rozumieniu ustawy z 18 lipca 2002 r. o świadczeniu usług drogą elektroniczną.</li>
+<li>Serwis świadczy usługę mocy obliczeniowej. Usługodawca nie weryfikuje poprawności fizycznej ani inżynierskiej Modelu i nie odpowiada za wnioski wyciągane z Wyników. Odpowiedzialność za Model, dobór parametrów i interpretację Wyników ponosi Użytkownik.</li>
+<li>Program FDS jest oprogramowaniem publicznym National Institute of Standards and Technology (USA), udostępnianym bez gwarancji. Usługodawca nie jest autorem FDS.</li>
+<li>Do korzystania z Serwisu potrzebna jest przeglądarka internetowa z obsługą JavaScript i aktywny adres e-mail.</li>
+</ol>
+
+<h2>§3. Konto</h2>
+<ol>
+<li>Konto zakłada się, podając adres e-mail, hasło i rodzaj konta (firma, student, osoba prywatna). Adres e-mail wymaga potwierdzenia.</li>
+<li>Przed pierwszym Zleceniem Użytkownik podaje dane do rozliczeń: firma — nazwę, adres i NIP (lub numer VAT UE); osoba prywatna — imię, nazwisko i adres. Dane te są weryfikowane w rejestrach publicznych (GUS, VIES).</li>
+<li>Użytkownik odpowiada za poufność hasła. Usługodawca zaleca włączenie logowania dwuskładnikowego.</li>
+<li>Usługodawca może odmówić założenia konta lub zablokować konto, gdy Użytkownik narusza Regulamin, zalega z płatnością albo podaje nieprawdziwe dane, w tym pochodzi z kraju objętego sankcjami Unii Europejskiej.</li>
+</ol>
+
+<h2>§4. Zlecenie i cena</h2>
+<ol>
+<li>Po wgraniu Modelu Serwis pokazuje analizę, szacowany czas obliczeń i szacowaną cenę. Szacunek jest orientacyjny; rzeczywisty czas zależy od przebiegu obliczeń.</li>
+<li>Cena Zlecenia to rzeczywisty czas pracy maszyny obliczeniowej (liczony co do minuty, w tym czas uruchomienia i zapisu Wyników) pomnożony przez stawkę godzinową wybranego typu maszyny, podaną w cenniku, plus ewentualne prowizje operatora płatności wskazane przed startem.</li>
+<li>Jeżeli w trakcie obliczeń prognozowany czas przekracza szacunek o ponad 30%, Serwis informuje o tym Użytkownika w widoku Zlecenia. Obliczenia nie są przerywane.</li>
+<li>Użytkownik może zatrzymać Zlecenie w każdej chwili. Płaci za czas do zatrzymania; Wyniki do tej chwili pozostają dostępne.</li>
+<li>Jeżeli obliczenia zakończą się błędem z przyczyn leżących po stronie Modelu (np. błąd składni, niestabilność numeryczna), Użytkownik płaci za zużyty czas maszyny. Jeżeli błąd leży po stronie Serwisu (awaria maszyny, przerwanie przez Usługodawcę), Zlecenie nie podlega opłacie.</li>
+<li>Ceny dla firm podawane są netto; dla Konsumentów brutto, z podatkiem VAT właściwym dla kraju Konsumenta.</li>
+</ol>
+
+<h2>§5. Płatność</h2>
+<ol>
+<li>Płatność następuje po zakończeniu Zlecenia. Użytkownik, który zapisał kartę płatniczą (weryfikowaną przez bank bez pobrania środków), jest obciążany automatycznie; przy dłuższych Zleceniach obciążenia mogą następować etapami.</li>
+<li>Użytkownik bez zapisanej karty otrzymuje link do płatności (BLIK, Przelewy24, przelew) i fakturę z terminem 7 dni. Do czasu zapłaty pliki Wyników końcowych nie są udostępniane do pobrania; podgląd logu i wykresów pozostaje dostępny.</li>
+<li>Dla nowych kont bez zapisanej karty obowiązuje limit ceny jednego Zlecenia, podany w widoku Zlecenia.</li>
+<li>Po przekroczeniu terminu płatności Usługodawca wysyła przypomnienia, a po 7 dniach blokuje możliwość uruchamiania nowych Zleceń. W obrocie profesjonalnym należą się odsetki ustawowe za opóźnienie w transakcjach handlowych i rekompensata za koszty odzyskiwania należności.</li>
+<li>Faktury wystawiane są elektronicznie, w Krajowym Systemie e-Faktur dla podmiotów do tego uprawnionych, i udostępniane w Koncie.</li>
+</ol>
+
+<h2>§6. Dane i Wyniki</h2>
+<ol>
+<li>Model i Wyniki są poufne. Usługodawca nie wykorzystuje ich do żadnych celów poza wykonaniem Zlecenia i nie udostępnia osobom trzecim, z wyjątkiem podwykonawców infrastruktury (§8 polityki prywatności) i przypadków wymaganych prawem.</li>
+<li>Wyniki są przechowywane przez {{ results_days }} dni od zakończenia Zlecenia, po czym są trwale usuwane. Użytkownik może usunąć je wcześniej.</li>
+<li>Maszyna obliczeniowa jest usuwana natychmiast po zakończeniu Zlecenia wraz ze wszystkimi danymi na niej.</li>
+<li>Administrator Serwisu ma techniczną możliwość wglądu w Model i Wyniki w celu diagnostyki. Każdy taki wgląd jest zapisywany w historii Zlecenia, widocznej dla Użytkownika.</li>
+<li>Obliczenia odbywają się na serwerach w Unii Europejskiej.</li>
+</ol>
+
+<h2>§7. Odpowiedzialność</h2>
+<ol>
+<li>Usługodawca dokłada starań, aby Serwis działał nieprzerwanie, ale nie gwarantuje dostępności. Prace serwisowe są ogłaszane w Serwisie.</li>
+<li>Odpowiedzialność Usługodawcy wobec Użytkownika niebędącego Konsumentem jest ograniczona do kwoty zapłaconej za dane Zlecenie i nie obejmuje utraconych korzyści.</li>
+<li>Usługodawca nie odpowiada za skutki decyzji projektowych, ekspertyz ani dokumentów opartych na Wynikach.</li>
+</ol>
+
+<h2>§8. Konsumenci</h2>
+<ol>
+<li>Konsument ma prawo odstąpić od umowy o założenie Konta w terminie 14 dni bez podania przyczyny.</li>
+<li>Uruchamiając Zlecenie, Konsument wyraża wyraźną zgodę na rozpoczęcie świadczenia usługi przed upływem terminu odstąpienia i przyjmuje do wiadomości, że po pełnym wykonaniu usługi traci prawo odstąpienia; w razie odstąpienia w trakcie Zlecenia płaci za usługę wykonaną do chwili odstąpienia.</li>
+<li>Reklamacje można składać na adres {{ company.email }}; Usługodawca odpowiada w ciągu 14 dni.</li>
+<li>Konsument może skorzystać z pozasądowych sposobów rozpatrywania reklamacji, w tym z platformy ODR Komisji Europejskiej.</li>
+</ol>
+
+<h2>§9. Postanowienia końcowe</h2>
+<ol>
+<li>Umowa podlega prawu polskiemu. Wobec Użytkowników niebędących Konsumentami sądem właściwym jest sąd siedziby Usługodawcy. Wobec Konsumentów z innych państw stosuje się przepisy chroniące konsumentów w państwie ich zamieszkania w zakresie, w jakim są korzystniejsze.</li>
+<li>Regulamin jest dostępny w języku polskim i angielskim; w razie rozbieżności wiąże wersja polska.</li>
+<li>Usługodawca może zmienić Regulamin z ważnych przyczyn (zmiana prawa, zmiana zakresu usług, bezpieczeństwo). O zmianie informuje e-mailem 14 dni wcześniej. Zlecenia rozpoczęte przed zmianą rozliczane są na dotychczasowych zasadach.</li>
+</ol>
+{% endblock %}

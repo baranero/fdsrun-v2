@@ -5,6 +5,7 @@
   <h1>Załóż konto</h1>
   <form method="post">{% csrf_token %}
     {{ form.as_p }}
+    <p class="muted">Zakładając konto, akceptujesz <a href="{% url 'legal:terms' %}">regulamin</a>, <a href="{% url 'legal:privacy' %}">politykę prywatności</a> i, dla kont firmowych, <a href="{% url 'legal:dpa' %}">umowę powierzenia danych</a>.</p>
     <button class="btn primary" type="submit">Załóż konto</button>
   </form>
 </section>

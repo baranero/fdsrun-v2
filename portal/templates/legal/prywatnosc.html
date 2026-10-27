@@ -1,0 +1,32 @@
+{% extends "legal/_base.html" %}
+{% block title %}Polityka prywatności · fdsrun{% endblock %}
+{% block doc_title %}Polityka prywatności{% endblock %}
+{% block doc %}
+<h2>1. Administrator</h2>
+<p>Administratorem danych osobowych jest {{ company.name }}, {{ company.address }}, NIP {{ company.nip }}, e-mail {{ company.email }}.</p>
+
+<h2>2. Jakie dane przetwarzamy i po co</h2>
+<table><tr><th>Dane</th><th>Cel</th><th>Podstawa (RODO)</th><th>Jak długo</th></tr>
+<tr><td>e-mail, hasło (hash), rodzaj konta, język</td><td>prowadzenie Konta, logowanie, 2FA</td><td>art. 6 ust. 1 lit. b — umowa</td><td>do usunięcia Konta</td></tr>
+<tr><td>dane do faktury: nazwa, adres, NIP / VAT UE; dla osób prywatnych imię, nazwisko, adres</td><td>rozliczenie Zlecenia, faktura, KSeF</td><td>art. 6 ust. 1 lit. b i c — umowa, obowiązek podatkowy</td><td>5 lat od końca roku podatkowego</td></tr>
+<tr><td>dane karty — przechowywane wyłącznie u operatora płatności (Stripe); my widzimy tylko ostatnie cyfry</td><td>płatność po Zleceniu</td><td>art. 6 ust. 1 lit. b</td><td>do usunięcia karty przez Użytkownika</td></tr>
+<tr><td>plik Modelu, Wyniki, log obliczeń</td><td>wykonanie Zlecenia</td><td>art. 6 ust. 1 lit. b</td><td>{{ results_days }} dni od zakończenia, Model z Zleceniem</td></tr>
+<tr><td>adres IP, logi serwera, data i czas logowania, urządzenie</td><td>bezpieczeństwo, wykrywanie nadużyć</td><td>art. 6 ust. 1 lit. f — uzasadniony interes</td><td>90 dni</td></tr>
+<tr><td>historia zleceń, kwoty, zdarzenia (w tym dostęp administratora)</td><td>rozliczenia, reklamacje, przejrzystość</td><td>art. 6 ust. 1 lit. b i f</td><td>do usunięcia Konta, dane księgowe 5 lat</td></tr>
+</table>
+
+<h2>3. Odbiorcy danych</h2>
+<p>Dane powierzamy wyłącznie podmiotom niezbędnym do działania Serwisu, na podstawie umów powierzenia: Hetzner Online GmbH (serwery, Niemcy/Finlandia), Stripe Payments Europe Ltd. (płatności, Irlandia), Brevo / Sendinblue SAS (poczta, Francja), ING Bank Śląski S.A. — ING Księgowość (faktury, Polska), GitHub Inc. (kod aplikacji, bez danych użytkowników). Dane księgowe trafiają do Krajowego Systemu e-Faktur zgodnie z prawem. Nie przekazujemy danych poza Europejski Obszar Gospodarczy, z wyjątkiem sytuacji, gdy wymaga tego operator płatności na podstawie standardowych klauzul umownych.</p>
+
+<h2>4. Pliki Modelu</h2>
+<p>Pliki .fds mogą zawierać dane projektowe budynków. Traktujemy je jako poufne: dostęp mają wyłącznie procesy obliczeniowe i administrator w celu diagnostyki, a każdy dostęp administratora jest zapisywany i widoczny dla Użytkownika. Pliki są szyfrowane w transmisji; maszyny obliczeniowe są kasowane po zakończeniu Zlecenia.</p>
+
+<h2>5. Twoje prawa</h2>
+<p>Masz prawo dostępu do danych, ich sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia oraz sprzeciwu wobec przetwarzania opartego na uzasadnionym interesie. Konto i wszystkie Zlecenia możesz usunąć w ustawieniach lub pisząc na {{ company.email }}. Masz prawo wnieść skargę do Prezesa Urzędu Ochrony Danych Osobowych.</p>
+
+<h2>6. Bezpieczeństwo</h2>
+<p>Hasła przechowujemy wyłącznie jako skróty kryptograficzne (Argon2/PBKDF2), połączenia są szyfrowane (TLS), serwery nie mają otwartego dostępu zdalnego poza aplikacją, kopie zapasowe bazy są wykonywane codziennie. O naruszeniu ochrony danych powiadomimy UODO w ciągu 72 godzin, a osoby, których dotyczy, bez zbędnej zwłoki.</p>
+
+<h2>7. Pliki cookies</h2>
+<p>Serwis używa wyłącznie plików niezbędnych do działania: cookie sesji (logowanie) i cookie zabezpieczające formularze (CSRF). Nie używamy cookies reklamowych ani analitycznych firm trzecich, dlatego nie wyświetlamy banera zgody. Statystyki odwiedzin, jeśli je włączymy, będą zbierane bez identyfikacji użytkownika. Szczegóły: <a href="{% url 'legal:cookies' %}">informacja o cookies</a>.</p>
+{% endblock %}

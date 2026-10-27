@@ -1,0 +1,25 @@
+{% extends "legal/_base.html" %}
+{% block title %}Umowa powierzenia · fdsrun{% endblock %}
+{% block doc_title %}Umowa powierzenia przetwarzania danych osobowych{% endblock %}
+{% block doc %}
+<p>Umowa zawierana jest przez akceptację przy rejestracji konta firmowego między Użytkownikiem (<b>Administrator</b>) a {{ company.name }} (<b>Podmiot przetwarzający</b>) i stanowi umowę, o której mowa w art. 28 ust. 3 RODO.</p>
+<h2>1. Przedmiot i cel</h2>
+<p>Administrator powierza przetwarzanie danych osobowych, które mogą znajdować się w plikach Modelu i Wynikach (np. nazwy obiektów, adresy, nazwiska projektantów w opisach), wyłącznie w celu wykonania Zleceń w Serwisie.</p>
+<h2>2. Charakter i rodzaj danych</h2>
+<p>Dane zwykłe, incydentalnie zawarte w plikach technicznych; kategorie osób: pracownicy i kontrahenci Administratora, właściciele obiektów. Podmiot przetwarzający nie analizuje treści plików pod kątem danych osobowych.</p>
+<h2>3. Obowiązki Podmiotu przetwarzającego</h2>
+<ol>
+<li>Przetwarza dane wyłącznie na udokumentowane polecenie Administratora, którym jest uruchomienie Zlecenia.</li>
+<li>Zapewnia, że osoby mające dostęp do danych zobowiązały się do poufności.</li>
+<li>Stosuje środki bezpieczeństwa opisane w Polityce prywatności (szyfrowanie transmisji, brak zdalnego dostępu do serwerów, kasowanie maszyn po Zleceniu, dziennik dostępu administratora, kopie zapasowe).</li>
+<li>Korzysta z dalszych podmiotów przetwarzających wymienionych w Polityce prywatności (pkt 3); o zamiarze dodania nowego informuje e-mailem 14 dni wcześniej, a Administrator może wnieść sprzeciw.</li>
+<li>Pomaga Administratorowi w realizacji praw osób, których dane dotyczą, i w obowiązkach z art. 32–36 RODO.</li>
+<li>Zgłasza Administratorowi naruszenie ochrony danych bez zbędnej zwłoki, nie później niż 48 godzin od stwierdzenia.</li>
+<li>Po zakończeniu świadczenia usług usuwa dane: Wyniki po {{ results_days }} dniach od zakończenia Zlecenia, pozostałe dane po usunięciu Konta, chyba że prawo wymaga ich przechowywania.</li>
+<li>Udostępnia Administratorowi informacje niezbędne do wykazania spełnienia obowiązków z art. 28 RODO i umożliwia audyt po uzgodnieniu terminu, nie częściej niż raz w roku, na koszt Administratora.</li>
+</ol>
+<h2>4. Miejsce przetwarzania</h2>
+<p>Unia Europejska. Przekazanie poza EOG wyłącznie w przypadkach wskazanych w Polityce prywatności, na podstawie standardowych klauzul umownych.</p>
+<h2>5. Czas trwania</h2>
+<p>Umowa obowiązuje przez czas istnienia Konta. Rozwiązanie umowy następuje z usunięciem Konta.</p>
+{% endblock %}

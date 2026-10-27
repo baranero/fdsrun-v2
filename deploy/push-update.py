@@ -21,7 +21,7 @@ key = hashlib.sha256(f"fdsrun-deployer:{token}".encode()).hexdigest().encode()
 
 env = {}
 # application secrets kept in GitHub (see docs/sekrety.md); only non-empty ones are sent
-for name in ("EMAIL_HOST", "EMAIL_PORT", "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "ADMIN_EMAIL"):
+for name in ("EMAIL_HOST", "EMAIL_PORT", "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "ADMIN_EMAIL", "COMPANY_NAME", "COMPANY_ADDRESS", "COMPANY_NIP", "COMPANY_EMAIL"):
     if os.environ.get("APP_" + name):
         env[name] = os.environ["APP_" + name]
 if domain:
