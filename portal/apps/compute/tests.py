@@ -27,3 +27,33 @@ class AgentParserTests(SimpleTestCase):
 
     def test_nothing(self):
         self.assertIsNone(agent.parse_last_step("FDS starting\n"))
+
+
+from django.test import TestCase as _TestCase  # noqa: E402
+
+
+class JobRetryTests(_TestCase):
+    def test_retry_creates_queued_copy(self):
+        from io import StringIO
+        from pathlib import Path
+        from unittest import mock
+
+        from django.contrib.auth import get_user_model
+        from django.core.management import call_command
+
+        from apps.jobs.models import Job
+
+        user = get_user_model().objects.create_user(email="r@example.com", password="x", kind="company")
+        fixture = Path(__file__).parent.parent / "jobs" / "fixtures" / "minimal.fds"
+        orig = Job(owner=user, name="m", filename="minimal.fds", status=Job.Status.FAILED, procs=1, server_type="cpx32")
+        orig.save()
+        orig.input_path.parent.mkdir(parents=True, exist_ok=True)
+        orig.input_path.write_text(fixture.read_text())
+        out = StringIO()
+        with mock.patch("apps.compute.tasks.launch_job.delay") as launch:
+            call_command("job_retry", orig.public_id, stdout=out)
+        new = Job.objects.exclude(pk=orig.pk).get(owner=user)
+        self.assertEqual(new.status, Job.Status.QUEUED)
+        self.assertTrue(new.run_path.exists())
+        launch.assert_called_once_with(new.id)
+        self.assertIn(new.public_id, out.getvalue())

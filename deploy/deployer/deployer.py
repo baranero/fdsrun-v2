@@ -26,7 +26,7 @@ ENV_FILE = os.path.join(STACK_DIR, ".env")
 ALLOWED_FILES = {"compose.yml", "Caddyfile", "deployer.py"}
 ALLOWED_ENV = {"IMAGE", "PORTAL_DOMAINS", "PORTAL_URL", "COMPUTE_IMAGE", "FDSRUN_ENV", "HCLOUD_LOCATION", "EMAIL_HOST", "EMAIL_PORT", "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "ADMIN_EMAIL", "COMPANY_NAME", "COMPANY_ADDRESS", "COMPANY_NIP", "COMPANY_EMAIL"}
 MAX_SKEW_S = 300
-ALLOWED_MANAGE = {"smoke_test", "job_status", "job_log", "job_stop", "jobs_list", "promote_admin", "migrate", "showmigrations"}
+ALLOWED_MANAGE = {"smoke_test", "job_status", "job_log", "job_retry", "job_stop", "jobs_list", "promote_admin", "migrate", "showmigrations"}
 
 
 def read_env():

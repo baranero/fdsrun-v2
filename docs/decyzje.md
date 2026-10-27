@@ -4,6 +4,9 @@ Decyzje podjęte w trakcie budowy, od najnowszej. Decyzje klienta z planu wdroż
 
 ## 2026-10-26 — Etap 0
 
+**D-9. Kontener FDS startuje z `--ipc=host` i nielimitowanym stosem (`ulimit -s unlimited`).**
+Docker domyślnie daje kontenerowi 64 MB `/dev/shm` i 8 MB stosu. Intel MPI wymienia dane między procesami przez `/dev/shm`, a FDS (kompilator Intel) trzyma duże tablice na stosie — przy 8 procesach na cpx42 klatkaD padała po kilkunastu krokach z sygnałem „Bus error” (znalezione 27.10 przez powtórzenie zlecenia 6E38B092 z diagnostyką). Skrypty uruchomieniowe NIST same ustawiają `ulimit -s unlimited`. Po zmianie klatkaD liczy się na 8 procesach.
+
 **D-8. Przekroczenie wyceny nie zatrzymuje obliczeń.** Decyzja klienta: gdy prognoza przekracza wycenę o ponad 30%, portal tylko informuje w statusie zlecenia; obliczenia biegną dalej, a cena rośnie proporcjonalnie. Mechanizm pauzy zostaje w kodzie wyłączony.
 
 **D-7. Wdrażanie bez SSH: „deployer” na serwerze przyjmuje podpisane aktualizacje z GitHub Actions.**

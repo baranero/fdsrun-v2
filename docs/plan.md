@@ -23,7 +23,8 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 - [x] Przekroczenie wyceny o 30%: tylko informacja w statusie (decyzja klienta D-8), bez zatrzymywania
 - [x] Przeliczanie szacunku z rzeczywistego tempa (ETA) i kalibracja k z każdego zakończonego zlecenia
 - [x] Konto admina klienta (biuro@fp-solutions.pl)
-- [ ] Bramka: klatkaD liczy się od wysłania pliku do pobrania wyników
+- [x] Błąd „Bus error” przy 8 procesach (klatkaD) naprawiony: `--ipc=host` + nielimitowany stos (D-9); komendy admina `job_retry`, `job_stop`, smoke test z `copy_of`/`stop_after_s`
+- [ ] Bramka: klatkaD liczy się od wysłania pliku do pobrania wyników (ponowny start 27.10 przez `job_retry`)
 
 ## Etap 2 — konta i zlecenia
 - [x] Reset hasła, potwierdzenie e-maila (wymagane przed startem obliczeń)
