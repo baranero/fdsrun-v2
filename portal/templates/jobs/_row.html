@@ -1,5 +1,5 @@
 <tr>
-  <td><a class="strong" href="{% url 'jobs:detail' j.public_id %}">{{ j.name }}</a><div class="muted small mono">{{ j.public_id }}</div></td>
+  <td><a class="strong" href="{% url 'jobs:detail' j.public_id %}">{{ j.name }}</a><div class="muted small"><span class="mono">{{ j.public_id }}</span>{% if j.project %} · <a class="muted" href="{% url 'jobs:list' %}?p={{ j.project.name|urlencode }}">{{ j.project.name }}</a>{% endif %}</div></td>
   <td><span class="pill {{ j.status }}">{{ j.get_status_display }}</span></td>
   <td>
     {% if j.is_active %}

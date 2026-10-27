@@ -301,3 +301,14 @@ pre.log { font: 12px/1.45 var(--mono); background: var(--console-bg); color: var
 .progress { height: 6px; background: var(--sunken); border-radius: 3px; overflow: hidden; } .progress > span { display: block; height: 100%; background: var(--accent); }
 .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
 button.link { background: none; border: 0; color: var(--accent-ink); font: inherit; cursor: pointer; padding: 0; }
+
+/* ---------- chips, popover ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { font-size: 13px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 99px; padding: 4px 11px; background: var(--surface); }
+.chip:hover { text-decoration: none; border-color: var(--line-strong); color: var(--ink); }
+.chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.popover { position: relative; }
+.popover > summary { list-style: none; } .popover > summary::-webkit-details-marker { display: none; }
+.popover-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; width: min(380px, 90vw); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 16px; }
+.popover-panel input, .popover-panel textarea { max-width: none; }
+.page-head .note { white-space: pre-wrap; max-width: 70ch; color: var(--ink-2); }

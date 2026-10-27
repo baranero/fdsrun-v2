@@ -10,6 +10,22 @@ def new_token():
     return secrets.token_urlsafe(32)
 
 
+class Project(models.Model):
+    """A folder of jobs: one building, one client, one thesis chapter."""
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="projects")
+    name = models.CharField(max_length=120)
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = [("owner", "name")]
+
+    def __str__(self):
+        return self.name
+
+
 class Job(models.Model):
     """One FDS calculation: an uploaded .fds file and everything that happens to it."""
 
@@ -30,6 +46,8 @@ class Job(models.Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="jobs")
     public_id = models.CharField(max_length=12, unique=True, editable=False)
     name = models.CharField(max_length=120)
+    project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.SET_NULL, related_name="jobs")
+    note = models.TextField(blank=True)
     filename = models.CharField(max_length=255)
     chid = models.CharField(max_length=120, blank=True)
     status = models.CharField(max_length=14, choices=Status.choices, default=Status.DRAFT, db_index=True)

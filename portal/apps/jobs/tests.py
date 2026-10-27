@@ -300,3 +300,19 @@ class DownloadTests(TestCase):
         # share fragment for the owner
         self.client.login(username="d@example.com", password="x")
         self.assertContains(self.client.get(reverse("jobs:share", args=[self.job.public_id])), "curl -L -C -")
+
+
+class ProjectTests(TestCase):
+    def test_upload_with_project_and_edit(self):
+        from django.contrib.auth import get_user_model
+
+        user = get_user_model().objects.create_user(email="p@example.com", password="x", kind="company")
+        self.client.login(username="p@example.com", password="x")
+        job = Job(owner=user, name="m", filename="m.fds", chid="m")
+        job.save()
+        r = self.client.post(reverse("jobs:edit", args=[job.public_id]), {"name": "Klatka D", "project": "Biurowiec", "note": "wariant 2"})
+        self.assertEqual(r.status_code, 302)
+        job.refresh_from_db()
+        self.assertEqual((job.name, job.project.name, job.note), ("Klatka D", "Biurowiec", "wariant 2"))
+        self.assertContains(self.client.get(reverse("jobs:list") + "?p=Biurowiec"), "Klatka D")
+        self.assertNotContains(self.client.get(reverse("jobs:list") + "?p=none"), "Klatka D")

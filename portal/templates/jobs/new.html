@@ -11,6 +11,7 @@
     <input type="file" name="file" id="id_file" accept=".fds" required>
   </label>
   {% if form.file.errors %}<ul class="errorlist">{% for e in form.file.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  <p><label for="id_project">Projekt (folder) <span class="muted">— opcjonalnie</span></label><input type="text" name="project" id="id_project" list="projects" value="{{ form.project.value|default:preset }}" placeholder="np. Biurowiec Grzybowa, klatka D" autocomplete="off"><datalist id="projects">{% for p in projects %}<option value="{{ p.name }}">{% endfor %}</datalist><span class="help">Wpisz nazwę istniejącego projektu albo nową — folder powstanie sam.</span></p>
   <div class="actions"><button class="btn primary lg" type="submit" id="go">Przeanalizuj plik</button><span class="muted small">Analiza trwa kilka sekund. Nic się jeszcze nie uruchamia i nic nie kosztuje.</span></div>
 </form>
 <style>

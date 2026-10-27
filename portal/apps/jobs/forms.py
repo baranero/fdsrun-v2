@@ -4,6 +4,7 @@ from django.conf import settings
 
 class UploadForm(forms.Form):
     file = forms.FileField(label="Plik .fds")
+    project = forms.CharField(label="Projekt (folder)", required=False, max_length=120, help_text="Nazwa istniejącego lub nowego projektu; można zostawić puste.")
 
     def clean_file(self):
         f = self.cleaned_data["file"]
@@ -17,3 +18,9 @@ class UploadForm(forms.Form):
 class StartForm(forms.Form):
     procs = forms.IntegerField(min_value=1, max_value=64)
     server_type = forms.ChoiceField(choices=[("cpx32", "cpx32"), ("cpx42", "cpx42"), ("cpx62", "cpx62")])
+
+
+class JobEditForm(forms.Form):
+    name = forms.CharField(label="Nazwa zlecenia", max_length=120)
+    project = forms.CharField(label="Projekt (folder)", required=False, max_length=120)
+    note = forms.CharField(label="Notatka", required=False, widget=forms.Textarea(attrs={"rows": 3}), max_length=2000)

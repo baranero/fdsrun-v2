@@ -4,8 +4,18 @@
 <div>
   <div class="crumb"><a href="{% url 'jobs:list' %}">Zlecenia</a> / <span class="mono">{{ job.public_id }}</span></div>
   <div class="page-head">
-    <div><h1>{{ job.name }}</h1><p class="sub">{{ job.filename }}{% if job.chid and job.chid != job.name %}, CHID {{ job.chid }}{% endif %}, FDS {{ job.fds_version }}</p></div>
-    {% if archives %}<a class="btn primary" href="#pliki" data-tab="pliki">Pobierz wyniki</a>{% endif %}
+    <div><h1>{{ job.name }}</h1><p class="sub">{% if job.project %}<a href="{% url 'jobs:list' %}?p={{ job.project.name|urlencode }}">{{ job.project.name }}</a> · {% endif %}{{ job.filename }}{% if job.chid and job.chid != job.name %}, CHID {{ job.chid }}{% endif %}, FDS {{ job.fds_version }}</p>{% if job.note %}<p class="sub note">{{ job.note|linebreaksbr }}</p>{% endif %}</div>
+    <div class="actions">
+      <details class="popover"><summary class="btn">Edytuj</summary>
+        <form method="post" action="{% url 'jobs:edit' job.public_id %}" class="popover-panel">{% csrf_token %}
+          <p><label for="id_name">Nazwa zlecenia</label><input type="text" name="name" id="id_name" value="{{ edit_form.name.value }}" required maxlength="120"></p>
+          <p><label for="id_project">Projekt (folder)</label><input type="text" name="project" id="id_project" list="projects" value="{{ edit_form.project.value|default:'' }}" autocomplete="off"><datalist id="projects">{% for p in projects %}<option value="{{ p.name }}">{% endfor %}</datalist></p>
+          <p><label for="id_note">Notatka</label><textarea name="note" id="id_note" rows="3" maxlength="2000">{{ edit_form.note.value|default:'' }}</textarea></p>
+          <div class="actions"><button class="btn primary" type="submit">Zapisz</button></div>
+        </form>
+      </details>
+      {% if archives %}<a class="btn primary" href="#pliki" data-tab="pliki">Pobierz wyniki</a>{% endif %}
+    </div>
   </div>
 </div>
 
@@ -70,7 +80,7 @@
       {% for e in events %}
       <li class="{% if 'fail' in e.kind or 'lost' in e.kind or e.kind == 'stalled' %}bad{% elif e.kind == 'finished' and job.status == 'done' %}good{% elif forloop.last and job.is_active %}now{% endif %}">
         <span class="t">{{ e.at|date:"d.m H:i:s" }}</span>
-        <span><span>{% if e.kind == 'uploaded' %}Plik wgrany{% elif e.kind == 'run_file' %}Siatki przypisane do procesów{% elif e.kind == 'start' %}Uruchomiono{% elif e.kind == 'machine_created' %}Maszyna utworzona{% elif e.kind == 'machine_deleted' %}Maszyna usunięta{% elif e.kind == 'agent_finish' or e.kind == 'finished' %}Zakończono{% elif e.kind == 'stop_requested' %}Poproszono o zatrzymanie{% elif e.kind == 'budget_notice' %}Prognoza przekracza wycenę{% elif e.kind == 'download' %}Pobrano plik{% elif e.kind == 'admin_view' %}Podgląd administratora{% else %}{{ e.kind }}{% endif %}</span>{% if e.detail %} <span class="d">{{ e.detail }}</span>{% endif %}</span>
+        <span><span>{% if e.kind == 'uploaded' %}Plik wgrany{% elif e.kind == 'run_file' %}Siatki przypisane do procesów{% elif e.kind == 'start' %}Uruchomiono{% elif e.kind == 'machine_created' %}Maszyna utworzona{% elif e.kind == 'machine_deleted' %}Maszyna usunięta{% elif e.kind == 'agent_finish' or e.kind == 'finished' %}Zakończono{% elif e.kind == 'stop_requested' %}Poproszono o zatrzymanie{% elif e.kind == 'budget_notice' %}Prognoza przekracza wycenę{% elif e.kind == 'download' %}Pobrano plik{% elif e.kind == 'admin_view' %}Podgląd administratora{% elif e.kind == 'share_links' %}Wygenerowano linki do pobrania{% elif e.kind == 'archives' %}Archiwa wyników gotowe{% elif e.kind == 'calibration' %}Kalibracja wyceny{% else %}{{ e.kind }}{% endif %}</span>{% if e.detail %} <span class="d">{{ e.detail }}</span>{% endif %}</span>
       </li>
       {% endfor %}
     </ul>

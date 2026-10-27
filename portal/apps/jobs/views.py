@@ -10,8 +10,8 @@ from apps.compute import tasks as compute_tasks
 
 from . import archives, charts
 from .analyzer import AnalyzerError, analyze_file, multiplier_for, prepare_run_file
-from .forms import StartForm, UploadForm
-from .models import Job, log_event
+from .forms import JobEditForm, StartForm, UploadForm
+from .models import Job, Project, log_event
 
 
 def _own_job(request, public_id):
@@ -62,11 +62,41 @@ def job_list(request):
         from django.db.models import Q
 
         jobs = jobs.filter(Q(name__icontains=q) | Q(public_id__icontains=q) | Q(chid__icontains=q) | Q(filename__icontains=q))
+    projects = Project.objects.filter(owner=request.user)
+    proj = request.GET.get("p", "")
+    if proj == "none":
+        jobs = jobs.filter(project__isnull=True)
+    elif proj:
+        jobs = jobs.filter(project__name=proj)
     return render(request, "jobs/list.html", {
-        "jobs": jobs, "flt": flt, "q": q,
+        "jobs": jobs.select_related("project"), "flt": flt, "q": q, "proj": proj, "projects": projects,
         "filters": [(k, v[0]) for k, v in LIST_FILTERS.items()],
         "poll": jobs.filter(status__in=Job.ACTIVE).exists(),
     })
+
+
+def _project_for(user, name):
+    name = (name or "").strip()
+    if not name:
+        return None
+    project, _ = Project.objects.get_or_create(owner=user, name=name[:120])
+    return project
+
+
+@login_required
+@require_POST
+def job_edit(request, public_id):
+    job = _own_job(request, public_id)
+    form = JobEditForm(request.POST)
+    if form.is_valid():
+        job.name = form.cleaned_data["name"]
+        job.note = form.cleaned_data["note"]
+        job.project = _project_for(job.owner, form.cleaned_data["project"])
+        job.save(update_fields=["name", "note", "project"])
+        messages.success(request, "Zapisano.")
+    else:
+        messages.error(request, "Nie udało się zapisać zmian.")
+    return redirect("jobs:detail", public_id=public_id)
 
 
 @login_required
@@ -74,7 +104,7 @@ def job_new(request):
     form = UploadForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         f = form.cleaned_data["file"]
-        job = Job(owner=request.user, name=f.name.rsplit(".", 1)[0][:120], filename=f.name)
+        job = Job(owner=request.user, name=f.name.rsplit(".", 1)[0][:120], filename=f.name, project=_project_for(request.user, form.cleaned_data.get("project")))
         job.save()
         job.input_path.parent.mkdir(parents=True, exist_ok=True)
         with open(job.input_path, "wb") as dst:
@@ -85,11 +115,11 @@ def job_new(request):
         except AnalyzerError as e:
             job.delete()
             messages.error(request, f"Nie udało się przeanalizować pliku: {e}")
-            return render(request, "jobs/new.html", {"form": form, "max_mb": settings.MAX_UPLOAD_MB})
+            return render(request, "jobs/new.html", {"form": form, "max_mb": settings.MAX_UPLOAD_MB, "projects": Project.objects.filter(owner=request.user), "preset": request.GET.get("p", "")})
         _apply_analysis(job, data)
         log_event(job, "uploaded", f"{f.name}, {f.size} B", actor=request.user.email)
         return redirect("jobs:detail", public_id=job.public_id)
-    return render(request, "jobs/new.html", {"form": form, "max_mb": settings.MAX_UPLOAD_MB})
+    return render(request, "jobs/new.html", {"form": form, "max_mb": settings.MAX_UPLOAD_MB, "projects": Project.objects.filter(owner=request.user), "preset": request.GET.get("p", "")})
 
 
 def _apply_analysis(job, data):
@@ -122,6 +152,8 @@ def job_detail(request, public_id):
         "confidence": job.analysis.get("estimate", {}).get("confidence", {}),
         "files": job.result_files(),
         "events": job.events.order_by("at"),
+        "edit_form": JobEditForm(initial={"name": job.name, "project": job.project.name if job.project else "", "note": job.note}),
+        "projects": Project.objects.filter(owner=job.owner),
         "meshes": job.analysis.get("model", {}).get("meshes", []),
         "model": job.analysis.get("model", {}),
     }
