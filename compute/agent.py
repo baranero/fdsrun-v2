@@ -228,8 +228,16 @@ def main():
             if time.time() - last_upload > UPLOAD_EVERY_S:
                 uploader.sync()
                 last_upload = time.time()
-        fds_log.close()
         rc = proc.returncode
+        if rc != 0:
+            # machine state for diagnostics: memory and recent kernel messages (OOM kills show here)
+            for cmd in (["free", "-m"], ["sh", "-c", "dmesg 2>/dev/null | tail -n 40"], ["nproc"]):
+                try:
+                    out = subprocess.run(cmd, capture_output=True, text=True, timeout=20).stdout
+                    fds_log.write(f"\n--- {' '.join(cmd)} ---\n{out}".encode())
+                except Exception:  # noqa: BLE001
+                    pass
+        fds_log.close()
         out_text = tail(out_path, 30)
         progress("finishing", message="Zapisuję wyniki", out_tail=out_text)
         uploader.sync(final=True)
