@@ -196,7 +196,9 @@ def main():
             procs = nproc
         fds_log = open(os.path.join(WORK, "fds_stdout.log"), "ab")
         proc = subprocess.Popen(
-            ["docker", "run", "--rm", "--name", "fds", "-v", f"{WORK}:/work", "-w", "/work", image,
+            # --ipc=host: Intel MPI exchanges data through /dev/shm; Docker's default 64 MB
+            # overflows with many ranks and kills a rank with SIGBUS.
+            ["docker", "run", "--rm", "--name", "fds", "--ipc=host", "-v", f"{WORK}:/work", "-w", "/work", image,
              "mpiexec", "-n", str(procs), "fds", fds_file],
             stdout=fds_log, stderr=subprocess.STDOUT,
         )
