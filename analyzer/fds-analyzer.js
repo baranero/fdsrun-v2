@@ -117,20 +117,20 @@
 
     const { groups, by } = parse(text);
     const unclosed = groups.filter(g => !g.closed);
-    if (unclosed.length) add('error', 'UNCLOSED', `Niezamknięta grupa &${unclosed[0].name} (brak znaku "/") w linii ${unclosed[0].line}.`);
+    if (unclosed.length) add('error', 'UNCLOSED', `Niezamknięta grupa &${unclosed[0].name} (brak znaku "/") w linii ${unclosed[0].line}.`, { line: unclosed[0].line, fix: 'Dopisz znak "/" na końcu tej grupy. Zwykle brakuje go po ostatnim parametrze albo w środku jest nieparzysta liczba apostrofów.' });
 
     const head = by('HEAD')[0];
     const chid = head ? str(head.p, 'CHID', '') : '';
     const title = head ? str(head.p, 'TITLE', '') : '';
-    if (!head || !chid) add('error', 'NO_CHID', 'Brak &HEAD z CHID — FDS nie wie, jak nazwać pliki wynikowe.');
+    if (!head || !chid) add('error', 'NO_CHID', 'Brak &HEAD z CHID — FDS nie wie, jak nazwać pliki wynikowe.', { fix: "Dodaj na początku pliku: &HEAD CHID='nazwa', TITLE='opis' /" });
     else if (/[\s.]/.test(chid)) add('warn', 'CHID_CHARS', `CHID "${chid}" zawiera spacje lub kropki — część narzędzi źle to obsługuje.`);
 
-    if (!by('TAIL').length) add('error', 'NO_TAIL', 'Brak &TAIL / na końcu pliku — FDS nie uruchomi obliczeń.');
+    if (!by('TAIL').length) add('error', 'NO_TAIL', 'Brak &TAIL / na końcu pliku — FDS nie uruchomi obliczeń.', { fix: 'Dopisz &TAIL / jako ostatnią linię pliku.' });
 
     const time = by('TIME')[0];
     const tBegin = time ? num(time.p, 'T_BEGIN', 0) : 0;
     const tEnd = time ? num(time.p, 'T_END', 1) : 1;
-    if (!time || !time.p.T_END) add('warn', 'NO_T_END', 'Brak T_END w &TIME — FDS przyjmie 1 sekundę symulacji.');
+    if (!time || !time.p.T_END) add('warn', 'NO_T_END', 'Brak T_END w &TIME — FDS przyjmie 1 sekundę symulacji.', { line: time ? time.line : undefined, fix: 'Dodaj &TIME T_END=600.0 / z czasem symulacji w sekundach.' });
     const simTime = Math.max(0, tEnd - tBegin);
 
     const misc = by('MISC')[0];
@@ -147,11 +147,11 @@
       const b = xb(g.p);
       const ijk = g.p.IJK;
       if (!b || !ijk || ijk.length < 3) {
-        add('error', 'MESH_BAD', `&MESH w linii ${g.line} nie ma poprawnych IJK lub XB.`);
+        add('error', 'MESH_BAD', `&MESH w linii ${g.line} nie ma poprawnych IJK lub XB.`, { line: g.line, fix: 'Każda siatka potrzebuje IJK=I,J,K (liczby komórek) i XB=x1,x2,y1,y2,z1,z2 (granice w metrach).' });
         return;
       }
       const mult = by('MULT').find(m => str(m.p, 'ID', null) === str(g.p, 'MULT_ID', '__none__'));
-      if (mult) add('warn', 'MULT_MESH', `Siatka w linii ${g.line} używa MULT_ID — analizator liczy ją jako jedną kopię.`);
+      if (mult) add('warn', 'MULT_MESH', `Siatka w linii ${g.line} używa MULT_ID — analizator liczy ją jako jedną kopię.`, { line: g.line });
       const [I, J, K] = ijk.map(Number);
       const dx = (b[1] - b[0]) / I, dy = (b[3] - b[2]) / J, dz = (b[5] - b[4]) / K;
       meshes.push({
@@ -167,7 +167,7 @@
 
     meshes.forEach(m => {
       const ar = Math.max(m.dx, m.dy, m.dz) / Math.min(m.dx, m.dy, m.dz);
-      if (ar > 2.01) add('warn', 'ASPECT', `Siatka "${m.id}": komórki mocno niesześcienne (${round(m.dx)}×${round(m.dy)}×${round(m.dz)} m, proporcja ${round(ar, 1)}:1). Zalecane do 2:1.`);
+      if (ar > 2.01) add('warn', 'ASPECT', `Siatka "${m.id}": komórki mocno niesześcienne (${round(m.dx)}×${round(m.dy)}×${round(m.dz)} m, proporcja ${round(ar, 1)}:1). Zalecane do 2:1.`, { line: m.line, fix: 'Dobierz IJK tak, aby dx ≈ dy ≈ dz; FDS liczy dokładniej na komórkach zbliżonych do sześcianu.' });
     });
 
     // overlaps and resolution jumps between neighbouring meshes
@@ -175,10 +175,10 @@
       for (let b = a + 1; b < meshes.length; b++) {
         const A = meshes[a], B = meshes[b];
         if (boxesOverlap(A.xb, B.xb)) {
-          add('warn', 'MESH_OVERLAP', `Siatki "${A.id}" i "${B.id}" nachodzą na siebie — FDS liczy wtedy ten obszar podwójnie lub niepoprawnie wymienia dane.`);
+          add('warn', 'MESH_OVERLAP', `Siatki "${A.id}" i "${B.id}" nachodzą na siebie — FDS liczy wtedy ten obszar podwójnie lub niepoprawnie wymienia dane.`, { line: B.line, fix: `Przesuń granicę XB jednej z siatek tak, aby siatki stykały się ścianami, a nie zachodziły na siebie.` });
         } else if (boxesTouchOrOverlap(A.xb, B.xb)) {
           const r = Math.max(A.dx, B.dx) / Math.min(A.dx, B.dx);
-          if (Math.abs(r - Math.round(r)) > 0.02) add('warn', 'MESH_RATIO', `Siatki "${A.id}" i "${B.id}" stykają się, a stosunek rozmiarów komórek (${round(r, 2)}) nie jest liczbą całkowitą.`);
+          if (Math.abs(r - Math.round(r)) > 0.02) add('warn', 'MESH_RATIO', `Siatki "${A.id}" i "${B.id}" stykają się, a stosunek rozmiarów komórek (${round(r, 2)}) nie jest liczbą całkowitą.`, { line: B.line, fix: 'Na styku siatek komórki powinny być równe albo w stosunku 1:2 (ewentualnie 1:3).' });
           else if (r > 2.01) add('info', 'MESH_JUMP', `Siatki "${A.id}" i "${B.id}": skok rozdzielczości ${Math.round(r)}:1 — zalecane najwyżej 2:1.`);
         }
       }
@@ -192,10 +192,10 @@
       procLoads = Array(nProc).fill(0);
       meshes.forEach((m, i) => { procLoads[m.mpi === null ? i : m.mpi] += m.cells; });
       const empty = procLoads.map((v, i) => (v === 0 ? i : null)).filter(v => v !== null);
-      if (empty.length) add('error', 'MPI_GAP', `MPI_PROCESS pomija numery ${empty.join(', ')} — FDS wymaga kolejnych numerów od 0.`);
+      if (empty.length) add('error', 'MPI_GAP', `MPI_PROCESS pomija numery ${empty.join(', ')} — FDS wymaga kolejnych numerów od 0.`, { fix: 'Portal i tak przypisze siatki do procesów na nowo przed startem; możesz też usunąć MPI_PROCESS z pliku.' });
       // FDS requires meshes to be listed in non-decreasing MPI_PROCESS order
       for (let i = 1; i < meshes.length; i++) {
-        if ((meshes[i].mpi ?? 0) < (meshes[i - 1].mpi ?? 0)) { add('error', 'MPI_ORDER', `Siatka "${meshes[i].id}" ma mniejszy MPI_PROCESS niż poprzednia — FDS wymaga rosnącej kolejności.`); break; }
+        if ((meshes[i].mpi ?? 0) < (meshes[i - 1].mpi ?? 0)) { add('error', 'MPI_ORDER', `Siatka "${meshes[i].id}" ma mniejszy MPI_PROCESS niż poprzednia — FDS wymaga rosnącej kolejności.`, { line: meshes[i].line, fix: 'Portal przypisze siatki do procesów na nowo przed startem; możesz też usunąć MPI_PROCESS z pliku.' }); break; }
       }
     } else {
       procLoads = meshes.map(m => m.cells);
@@ -210,42 +210,42 @@
     const ids = name => new Set(by(name).map(g => str(g.p, 'ID', null)).filter(Boolean));
     const surfIds = ids('SURF'), rampIds = ids('RAMP'), devcIds = ids('DEVC'), ctrlIds = ids('CTRL'), matlIds = ids('MATL'), specIds = ids('SPEC');
 
-    const refCheck = (setName, set, val, where, builtin) => {
+    const refCheck = (setName, set, val, where, builtin, refLine) => {
       if (typeof val !== 'string' || !val) return;
       if (builtin && builtin.has(val.toUpperCase())) return;
-      if (!set.has(val)) add('error', 'BAD_REF', `${where} odwołuje się do ${setName} "${val}", którego nie zdefiniowano.`);
+      if (!set.has(val)) add('error', 'BAD_REF', `${where} odwołuje się do ${setName} "${val}", którego nie zdefiniowano.`, { line: refLine, fix: `Dodaj grupę &${setName} ID='${val}' … / albo popraw nazwę — FDS zatrzyma się na tym odwołaniu zaraz po starcie.` });
     };
     const seenRef = new Set();
-    const refOnce = (setName, set, val, where, builtin) => {
+    const refOnce = (setName, set, val, where, builtin, line) => {
       const key = setName + '|' + val;
       if (seenRef.has(key)) return;
       seenRef.add(key);
-      refCheck(setName, set, val, where, builtin);
+      refCheck(setName, set, val, where, builtin, line);
     };
 
     by('OBST').concat(by('VENT')).forEach(g => {
-      ['SURF_ID', 'SURF_ID6'].forEach(k => (g.p[k] || []).forEach(v => refOnce('SURF', surfIds, v, `&${g.name} (linia ${g.line})`, BUILTIN_SURF)));
-      (g.p.SURF_IDS || []).forEach(v => refOnce('SURF', surfIds, v, `&${g.name} (linia ${g.line})`, BUILTIN_SURF));
-      refOnce('DEVC', devcIds, str(g.p, 'DEVC_ID', ''), `&${g.name} (linia ${g.line})`);
-      refOnce('CTRL', ctrlIds, str(g.p, 'CTRL_ID', ''), `&${g.name} (linia ${g.line})`);
+      ['SURF_ID', 'SURF_ID6'].forEach(k => (g.p[k] || []).forEach(v => refOnce('SURF', surfIds, v, `&${g.name} (linia ${g.line})`, BUILTIN_SURF, g.line)));
+      (g.p.SURF_IDS || []).forEach(v => refOnce('SURF', surfIds, v, `&${g.name} (linia ${g.line})`, BUILTIN_SURF, g.line));
+      refOnce('DEVC', devcIds, str(g.p, 'DEVC_ID', ''), `&${g.name} (linia ${g.line})`, undefined, g.line);
+      refOnce('CTRL', ctrlIds, str(g.p, 'CTRL_ID', ''), `&${g.name} (linia ${g.line})`, undefined, g.line);
     });
     by('SURF').forEach(g => {
-      Object.keys(g.p).filter(k => k.startsWith('RAMP_')).forEach(k => refOnce('RAMP', rampIds, str(g.p, k, ''), `&SURF "${str(g.p, 'ID', '')}"`));
-      Object.keys(g.p).filter(k => k.startsWith('MATL_ID')).forEach(k => g.p[k].forEach(v => refOnce('MATL', matlIds, v, `&SURF "${str(g.p, 'ID', '')}"`)));
+      Object.keys(g.p).filter(k => k.startsWith('RAMP_')).forEach(k => refOnce('RAMP', rampIds, str(g.p, k, ''), `&SURF "${str(g.p, 'ID', '')}"`, undefined, g.line));
+      Object.keys(g.p).filter(k => k.startsWith('MATL_ID')).forEach(k => g.p[k].forEach(v => refOnce('MATL', matlIds, v, `&SURF "${str(g.p, 'ID', '')}"`, undefined, g.line)));
     });
-    by('MATL').forEach(g => Object.keys(g.p).filter(k => /_RAMP$/.test(k)).forEach(k => refOnce('RAMP', rampIds, str(g.p, k, ''), `&MATL "${str(g.p, 'ID', '')}"`)));
-    by('HVAC').forEach(g => { if (str(g.p, 'DEVC_ID', '')) refOnce('DEVC', devcIds, str(g.p, 'DEVC_ID', ''), `&HVAC "${str(g.p, 'ID', '')}"`); });
+    by('MATL').forEach(g => Object.keys(g.p).filter(k => /_RAMP$/.test(k)).forEach(k => refOnce('RAMP', rampIds, str(g.p, k, ''), `&MATL "${str(g.p, 'ID', '')}"`, undefined, g.line)));
+    by('HVAC').forEach(g => { if (str(g.p, 'DEVC_ID', '')) refOnce('DEVC', devcIds, str(g.p, 'DEVC_ID', ''), `&HVAC "${str(g.p, 'ID', '')}"`, undefined, g.line); });
 
     // ----- devices inside the domain -----
-    let devcOutside = [];
+    let devcOutside = [], devcOutsideLine;
     by('DEVC').forEach(g => {
       const xyz = g.p.XYZ && g.p.XYZ.length >= 3 ? g.p.XYZ.slice(0, 3) : null;
       const pts = xyz ? [xyz] : (xb(g.p) ? [[xb(g.p)[0], xb(g.p)[2], xb(g.p)[4]], [xb(g.p)[1], xb(g.p)[3], xb(g.p)[5]]] : []);
       const q = str(g.p, 'QUANTITY', '');
       if (q === 'TIME' || q === 'CONTROL') return;
-      if (pts.some(pt => !meshes.some(m => inBox(pt, m.xb)))) devcOutside.push(str(g.p, 'ID', `linia ${g.line}`));
+      if (pts.some(pt => !meshes.some(m => inBox(pt, m.xb)))) { devcOutside.push(str(g.p, 'ID', `linia ${g.line}`)); if (devcOutsideLine === undefined) devcOutsideLine = g.line; }
     });
-    if (devcOutside.length) add('error', 'DEVC_OUT', `${devcOutside.length} urządzeń pomiarowych leży poza siatkami: ${listShort(devcOutside)}. FDS przerwie obliczenia lub je pominie.`);
+    if (devcOutside.length) add('error', 'DEVC_OUT', `${devcOutside.length} urządzeń pomiarowych leży poza siatkami: ${listShort(devcOutside)}. FDS przerwie obliczenia lub je pominie.`, { line: devcOutsideLine, fix: 'Przesuń XYZ/XB urządzenia do wnętrza siatki albo powiększ siatkę.' });
 
     // ----- obstructions -----
     const obst = by('OBST');
@@ -277,7 +277,7 @@
       const t = num(g.p, 'TMP_INNER', null);
       if (t === null) return;
       const d = Math.min(...refTemps.map(r => Math.abs(r - t)));
-      if (d >= 10) add('warn', 'TMP_OUTLIER', `Przegroda "${str(g.p, 'ID', '')}" ma TMP_INNER = ${t} °C, a otoczenie ${tmpa} °C i powietrze ${uniq(initTemps).join(', ') || '—'} °C. Sprawdź, czy wartość pasuje do tego wariantu.`);
+      if (d >= 10) add('warn', 'TMP_OUTLIER', `Przegroda "${str(g.p, 'ID', '')}" ma TMP_INNER = ${t} °C, a otoczenie ${tmpa} °C i powietrze ${uniq(initTemps).join(', ') || '—'} °C. Sprawdź, czy wartość pasuje do tego wariantu.`, { line: g.line });
     });
 
     // ----- restart -----

@@ -18,7 +18,7 @@
   <h2>Liczy się teraz</h2>
   <div class="table-wrap" hx-get="{% url 'jobs:dashboard' %}" hx-trigger="every 15s" hx-select=".table-wrap" hx-swap="outerHTML">
   <table>
-    <thead><tr><th>Zlecenie</th><th>Status</th><th>Postęp</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Start</th></tr></thead>
+    <thead><tr><th>Zlecenie</th><th>Status</th><th>Postęp</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Start</th><th></th></tr></thead>
     <tbody>{% for j in active %}{% include "jobs/_row.html" %}{% endfor %}</tbody>
   </table>
   </div>
@@ -29,7 +29,7 @@
 <section>
   <h2>Przeanalizowane, nieuruchomione</h2>
   <div class="table-wrap"><table>
-    <thead><tr><th>Zlecenie</th><th>Status</th><th>Postęp</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Wgrano</th></tr></thead>
+    <thead><tr><th>Zlecenie</th><th>Status</th><th>Postęp</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Wgrano</th><th></th></tr></thead>
     <tbody>{% for j in drafts %}{% include "jobs/_row.html" %}{% endfor %}</tbody>
   </table></div>
 </section>
@@ -39,7 +39,7 @@
   <h2>Ostatnio zakończone</h2>
   {% if recent %}
   <div class="table-wrap"><table>
-    <thead><tr><th>Zlecenie</th><th>Status</th><th>Czas</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Utworzono</th></tr></thead>
+    <thead><tr><th>Zlecenie</th><th>Status</th><th>Czas</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Utworzono</th><th></th></tr></thead>
     <tbody>{% for j in recent %}{% include "jobs/_row.html" %}{% endfor %}</tbody>
   </table></div>
   <p><a href="{% url 'jobs:list' %}">Wszystkie zlecenia</a></p>

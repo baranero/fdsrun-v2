@@ -7,25 +7,33 @@
 </div>
 
 <form method="get" class="actions" style="justify-content:space-between">
-  <div class="switch">{% for k, label in filters %}<a href="?f={{ k }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if proj %}&p={{ proj|urlencode }}{% endif %}" {% if k == flt %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</div>
+  <div class="switch">{% for k, label, n in filters %}<a href="?f={{ k }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if proj %}&p={{ proj|urlencode }}{% endif %}" {% if k == flt %}aria-current="page"{% endif %}>{{ label }} <span class="cnt">{{ n }}</span></a>{% endfor %}</div>
   <div class="field-row"><input type="hidden" name="f" value="{{ flt }}"><input type="hidden" name="p" value="{{ proj }}"><input type="search" name="q" value="{{ q }}" placeholder="Szukaj po nazwie, numerze lub CHID" style="max-width:320px"><button class="btn" type="submit">Szukaj</button></div>
 </form>
 {% if projects %}
 <div class="chips">
   <span class="muted small">Projekty:</span>
   <a class="chip{% if not proj %} on{% endif %}" href="?f={{ flt }}{% if q %}&q={{ q|urlencode }}{% endif %}">wszystkie</a>
-  {% for p in projects %}<a class="chip{% if proj == p.name %} on{% endif %}" href="?f={{ flt }}&p={{ p.name|urlencode }}{% if q %}&q={{ q|urlencode }}{% endif %}">{{ p.name }}</a>{% endfor %}
-  <a class="chip{% if proj == 'none' %} on{% endif %}" href="?f={{ flt }}&p=none{% if q %}&q={{ q|urlencode }}{% endif %}">bez projektu</a>
+  {% for p in projects %}<a class="chip{% if proj == p.name %} on{% endif %}" href="?f={{ flt }}&p={{ p.name|urlencode }}{% if q %}&q={{ q|urlencode }}{% endif %}">{{ p.name }} <span class="cnt">{{ p.n }}</span></a>{% endfor %}
+  <a class="chip{% if proj == 'none' %} on{% endif %}" href="?f={{ flt }}&p=none{% if q %}&q={{ q|urlencode }}{% endif %}">bez projektu <span class="cnt">{{ no_project }}</span></a>
 </div>
 {% endif %}
+<p class="muted small mono">Pokazano {{ shown }} z {{ matched }} zleceń{% if total_price %} · koszt zakończonych w tym filtrze: {{ total_price|floatformat:0 }} zł netto{% endif %}</p>
 
 {% if jobs %}
 <div class="table-wrap" {% if poll %}hx-get="{{ request.get_full_path }}" hx-trigger="every 15s" hx-select=".table-wrap" hx-swap="outerHTML"{% endif %}>
 <table>
-  <thead><tr><th>Zlecenie</th><th>Status</th><th>Postęp</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Utworzono</th></tr></thead>
+  <thead><tr><th>Zlecenie</th><th>Status</th><th>Postęp</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Utworzono</th><th></th></tr></thead>
   <tbody>{% for j in jobs %}{% include "jobs/_row.html" %}{% endfor %}</tbody>
 </table>
 </div>
+{% if page.paginator.num_pages > 1 %}
+<div class="actions pager">
+  {% if page.has_previous %}<a class="btn sm" href="?f={{ flt }}&p={{ proj|urlencode }}&q={{ q|urlencode }}&page={{ page.previous_page_number }}">Poprzednia</a>{% endif %}
+  <span class="muted small">strona {{ page.number }} z {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="btn sm" href="?f={{ flt }}&p={{ proj|urlencode }}&q={{ q|urlencode }}&page={{ page.next_page_number }}">Następna</a>{% endif %}
+</div>
+{% endif %}
 {% else %}
 <div class="empty">
   <h3>{% if q or flt %}Nic nie pasuje do filtra{% else %}Nie masz jeszcze zleceń{% endif %}</h3>

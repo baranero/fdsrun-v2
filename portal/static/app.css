@@ -322,3 +322,21 @@ button.link { background: none; border: 0; color: var(--accent-ink); font: inher
 .dl-card .size { font: 500 12px var(--mono); color: var(--ink-2); background: var(--sunken); border-radius: 4px; padding: 3px 7px; }
 .dl-card .btn { justify-self: start; }
 .crumb .mono { background: var(--sunken); border-radius: 4px; padding: 2px 6px; }
+
+/* ---------- start screen: variants and validation ---------- */
+.variants { display: grid; gap: 8px; }
+.variant { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); cursor: pointer; font-weight: 400; margin: 0; }
+.variant.on { border-color: var(--accent); background: var(--accent-soft); }
+.variant .v-main { display: grid; gap: 2px; } .variant .v-title { font-weight: 500; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.variant .v-price { text-align: right; display: grid; } .variant .v-price b { font: 600 20px var(--mono); font-variant-numeric: tabular-nums; }
+.tile.bad { border-color: var(--bad); } .tile.bad .v { color: var(--bad); }
+.issue-cards { display: grid; gap: 8px; }
+.issue { display: grid; gap: 8px; padding: 12px 14px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); border-left-width: 3px; font-size: 14px; }
+.issue.error { border-left-color: var(--bad); } .issue.warn { border-left-color: var(--warn); } .issue.info { border-left-color: var(--line-strong); }
+.issue .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.issue .src { display: block; padding: 8px 10px; white-space: pre-wrap; word-break: break-all; font-size: 12px; background: var(--sunken); border-radius: var(--r); }
+.issue .fix { color: var(--ink-2); } .issue .fix b { color: var(--ink); font-weight: 500; }
+.switch .cnt, .chip .cnt { font: 11px var(--mono); color: var(--muted); margin-left: 4px; }
+.chip.on .cnt { color: var(--bg); }
+.cell-progress .pct b { font-weight: 600; }
+.pager { justify-content: center; }

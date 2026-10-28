@@ -62,15 +62,24 @@ def job_list(request):
         from django.db.models import Q
 
         jobs = jobs.filter(Q(name__icontains=q) | Q(public_id__icontains=q) | Q(chid__icontains=q) | Q(filename__icontains=q))
-    projects = Project.objects.filter(owner=request.user)
+    from django.core.paginator import Paginator
+    from django.db.models import Count, Sum
+
+    mine = Job.objects.filter(owner=request.user)
+    projects = Project.objects.filter(owner=request.user).annotate(n=Count("jobs"))
     proj = request.GET.get("p", "")
     if proj == "none":
         jobs = jobs.filter(project__isnull=True)
     elif proj:
         jobs = jobs.filter(project__name=proj)
+    counts = {k: (v[1](mine) if v[1] else mine).count() for k, v in LIST_FILTERS.items()}
+    total_price = jobs.aggregate(s=Sum("price_pln"))["s"] or 0
+    page = Paginator(jobs.select_related("project"), 25).get_page(request.GET.get("page"))
     return render(request, "jobs/list.html", {
-        "jobs": jobs.select_related("project"), "flt": flt, "q": q, "proj": proj, "projects": projects,
-        "filters": [(k, v[0]) for k, v in LIST_FILTERS.items()],
+        "jobs": page.object_list, "page": page, "flt": flt, "q": q, "proj": proj, "projects": projects,
+        "filters": [(k, v[0], counts[k]) for k, v in LIST_FILTERS.items()],
+        "no_project": mine.filter(project__isnull=True).count(),
+        "shown": len(page.object_list), "matched": page.paginator.count, "total_price": total_price,
         "poll": jobs.filter(status__in=Job.ACTIVE).exists(),
     })
 
@@ -122,6 +131,24 @@ def job_new(request):
     return render(request, "jobs/new.html", {"form": form, "max_mb": settings.MAX_UPLOAD_MB, "projects": Project.objects.filter(owner=request.user), "preset": request.GET.get("p", "")})
 
 
+def _issues_with_source(job):
+    """Validation issues plus the quoted source line for those that point at a line."""
+    issues = [dict(i) for i in job.analysis.get("issues", [])]
+    wanted = {i["line"] for i in issues if i.get("line")}
+    if wanted and job.input_path.is_file():
+        try:
+            with open(job.input_path, errors="replace") as fh:
+                lines = {n: line.rstrip("\n")[:200] for n, line in enumerate(fh, 1) if n in wanted}
+        except OSError:
+            lines = {}
+        for i in issues:
+            if i.get("line") in lines:
+                i["src"] = lines[i["line"]]
+    order = {"error": 0, "warn": 1, "info": 2}
+    issues.sort(key=lambda i: order.get(i["level"], 3))
+    return issues
+
+
 def _apply_analysis(job, data):
     m = data["model"]
     job.analysis = data
@@ -142,10 +169,12 @@ def _apply_analysis(job, data):
 @login_required
 def job_detail(request, public_id):
     job = _own_job(request, public_id)
-    errors = [i for i in job.analysis.get("issues", []) if i["level"] == "error"]
+    issues = _issues_with_source(job)
+    errors = [i for i in issues if i["level"] == "error"]
     ctx = {
         "job": job,
-        "issues": job.analysis.get("issues", []),
+        "issues": issues,
+        "issue_counts": {lvl: sum(1 for i in issues if i["level"] == lvl) for lvl in ("error", "warn", "info")},
         "has_errors": bool(errors),
         "options": job.analysis.get("advice", {}).get("best", []),
         "tips": job.analysis.get("advice", {}).get("tips", []),

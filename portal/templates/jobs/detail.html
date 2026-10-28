@@ -30,36 +30,58 @@
 <div class="panel" id="panel-start">
   <div class="grid-2">
     <section>
+      <h2>Plik i model</h2>
+      <div class="chips">
+        <span class="chip">CHID {{ job.chid|default:"—" }}</span>
+        <span class="chip">FDS {{ job.fds_version }}</span>
+        <span class="chip">T_END {{ job.sim_time|floatformat:0 }} s</span>
+        <span class="chip">{{ job.n_meshes }} siatek, {{ job.total_cells }} komórek</span>
+        {% if model.dxMin %}<span class="chip">Δx min {{ model.dxMin|floatformat:3 }} m</span>{% endif %}
+      </div>
       <h2>Serwer i liczba procesów</h2>
       <p class="muted small">FDS liczy jedną siatkę na jednym procesie. Czas dyktuje najbardziej obciążony proces, więc więcej rdzeni nie zawsze pomaga — stąd kilka wariantów.</p>
       <form method="post" action="{% url 'jobs:start' job.public_id %}" id="startform">{% csrf_token %}
-      <div class="table-wrap"><table>
-        <thead><tr><th></th><th>Serwer</th><th class="num">Procesy</th><th class="num">Czas</th><th class="num">Cena netto</th><th></th></tr></thead>
-        <tbody>
+      <div class="variants">
         {% for o in options %}
-        <tr{% if o.procs == job.procs and o.server == job.server_type %} class="pick"{% endif %}>
-          <td><input type="radio" name="choice" value="{{ o.procs }}:{{ o.server }}" {% if o.procs == job.procs and o.server == job.server_type %}checked{% endif %} onchange="document.getElementById('procs').value='{{ o.procs }}';document.getElementById('server_type').value='{{ o.server }}';document.querySelectorAll('#startform tr').forEach(function(r){r.classList.remove('pick')});this.closest('tr').classList.add('pick')"></td>
-          <td>{{ o.server }} <span class="muted">{{ o.vcpu }} vCPU</span></td>
-          <td class="num">{{ o.procs }}</td>
-          <td class="num">{{ o.hours|floatformat:1 }} h</td>
-          <td class="num">{{ o.pricePln|floatformat:0 }} zł</td>
-          <td>{% if o.procs == cheapest.procs and o.server == cheapest.server %}<span class="pill ok">najtaniej</span>{% endif %} {% if o.procs == fastest.procs and o.server == fastest.server %}<span class="pill info">najszybciej</span>{% endif %}</td>
-        </tr>
+        <label class="variant{% if o.procs == job.procs and o.server == job.server_type %} on{% endif %}">
+          <input type="radio" name="choice" value="{{ o.procs }}:{{ o.server }}" {% if o.procs == job.procs and o.server == job.server_type %}checked{% endif %} onchange="document.getElementById('procs').value='{{ o.procs }}';document.getElementById('server_type').value='{{ o.server }}';document.querySelectorAll('#startform .variant').forEach(function(r){r.classList.remove('on')});this.closest('.variant').classList.add('on')">
+          <span class="v-main">
+            <span class="v-title">{{ o.server }} <span class="muted">{{ o.vcpu }} vCPU</span>, {{ o.procs }} {% if o.procs == 1 %}proces{% elif o.procs < 5 %}procesy{% else %}procesów{% endif %} MPI
+              {% if o.procs == cheapest.procs and o.server == cheapest.server %}<span class="pill ok">najtaniej</span>{% endif %}
+              {% if o.procs == fastest.procs and o.server == fastest.server %}<span class="pill info">najszybciej</span>{% endif %}</span>
+            <span class="muted small">szacowany czas {{ o.hours|floatformat:1 }} h, najbardziej obciążony proces {{ o.load }} komórek</span>
+          </span>
+          <span class="v-price"><b>{{ o.pricePln|floatformat:0 }} zł</b><span class="muted small">netto</span></span>
+        </label>
         {% endfor %}
-        </tbody>
-      </table></div>
+      </div>
       <input type="hidden" id="procs" name="procs" value="{{ job.procs }}">
       <input type="hidden" id="server_type" name="server_type" value="{{ job.server_type }}">
       {% if confidence.note %}<p class="muted small">{{ confidence.note }}</p>{% endif %}
-      <div class="actions"><button class="btn primary lg" type="submit" {% if has_errors %}disabled{% endif %}>Uruchom obliczenia</button>{% if has_errors %}<span class="muted small">Najpierw popraw błędy z zakładki Model i wgraj plik ponownie.</span>{% else %}<span class="muted small">Płatność po zakończeniu. Pierwsze 2 minuty to bieg testowy bez opłaty, jeśli FDS zatrzyma się na błędzie.</span>{% endif %}</div>
+      <div class="actions"><button class="btn primary lg" type="submit" {% if has_errors %}disabled{% endif %}>Uruchom obliczenia</button>{% if has_errors %}<span class="muted small">Najpierw popraw błędy z listy obok i wgraj plik ponownie.</span>{% else %}<span class="muted small">Płatność po zakończeniu. Pierwsze 2 minuty to bieg testowy bez opłaty, jeśli FDS zatrzyma się na błędzie.</span>{% endif %}</div>
       </form>
       {% if tips %}<ul class="tips">{% for t in tips %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
     </section>
     <section>
       <h2>Sprawdzenie pliku</h2>
+      <div class="tiles">
+        <div class="tile{% if issue_counts.error %} bad{% endif %}"><span class="k">Błędy</span><span class="v">{{ issue_counts.error }}</span><span class="s">zatrzymają FDS</span></div>
+        <div class="tile"><span class="k">Uwagi</span><span class="v">{{ issue_counts.warn }}</span><span class="s">warto sprawdzić</span></div>
+        <div class="tile"><span class="k">Informacje</span><span class="v">{{ issue_counts.info }}</span><span class="s">podpowiedzi</span></div>
+      </div>
       {% if issues %}
-      <ul class="issues">{% for i in issues %}<li class="{{ i.level }}"><span class="pill {% if i.level == 'error' %}error{% elif i.level == 'warn' %}warn{% else %}info{% endif %}">{% if i.level == 'error' %}błąd{% elif i.level == 'warn' %}uwaga{% else %}info{% endif %}</span><span>{{ i.msg }}</span></li>{% endfor %}</ul>
+      <div class="issue-cards">
+        {% for i in issues %}
+        <div class="issue {{ i.level }}">
+          <div class="row"><span class="pill {% if i.level == 'error' %}error{% elif i.level == 'warn' %}warn{% else %}info{% endif %}">{% if i.level == 'error' %}błąd{% elif i.level == 'warn' %}uwaga{% else %}info{% endif %}</span>{% if i.line %}<span class="mono small muted">linia {{ i.line }}</span>{% endif %}<span class="mono small muted">{{ i.code }}</span></div>
+          <p>{{ i.msg }}</p>
+          {% if i.src %}<code class="src">{{ i.src }}</code>{% endif %}
+          {% if i.fix %}<p class="fix"><b>Jak poprawić:</b> {{ i.fix }}</p>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
       {% else %}<div class="notice good">Nie znaleziono problemów. FDS powinien wystartować bez przeszkód.</div>{% endif %}
+      <div class="actions"><a class="btn" href="{% url 'jobs:new' %}{% if job.project %}?p={{ job.project.name|urlencode }}{% endif %}">Wgraj poprawiony plik</a><span class="muted small">Poprawiasz plik u siebie (PyroSim lub edytor) i wgrywasz jako nowe zlecenie.</span></div>
     </section>
   </div>
 </div>
@@ -180,7 +202,7 @@
     <section>
       <h2>Sprawdzenie pliku</h2>
       {% if issues %}
-      <ul class="issues">{% for i in issues %}<li class="{{ i.level }}"><span class="pill {% if i.level == 'error' %}error{% elif i.level == 'warn' %}warn{% else %}info{% endif %}">{% if i.level == 'error' %}błąd{% elif i.level == 'warn' %}uwaga{% else %}info{% endif %}</span><span>{{ i.msg }}</span></li>{% endfor %}</ul>
+      <div class="issue-cards">{% for i in issues %}<div class="issue {{ i.level }}"><div class="row"><span class="pill {% if i.level == 'error' %}error{% elif i.level == 'warn' %}warn{% else %}info{% endif %}">{% if i.level == 'error' %}błąd{% elif i.level == 'warn' %}uwaga{% else %}info{% endif %}</span>{% if i.line %}<span class="mono small muted">linia {{ i.line }}</span>{% endif %}</div><p>{{ i.msg }}</p>{% if i.src %}<code class="src">{{ i.src }}</code>{% endif %}</div>{% endfor %}</div>
       {% else %}<p class="muted">Nie znaleziono problemów.</p>{% endif %}
       <p><a href="{% url 'download' job.public_id job.filename %}">Pobierz plik wejściowy</a></p>
     </section>
