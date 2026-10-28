@@ -8,6 +8,7 @@ report progress every 10 s and upload small result files every 60 s ->
 upload everything at the end -> report finish. The portal then deletes the machine.
 """
 
+import hashlib
 import http.client
 import json
 import os
@@ -24,8 +25,11 @@ CONF = "/etc/fdsrun-agent.env"
 WORK = "/work"
 LOG = "/var/log/fdsrun-agent.log"
 HEARTBEAT_S = 10
-UPLOAD_EVERY_S = 60
+UPLOAD_EVERY_S = 60           # small files (CSV, .out, .smv) — whole file
+LARGE_EVERY_S = 300           # large files (slices, boundary, 3D smoke) — only the new bytes
 SMALL_FILE_LIMIT = 64 * 1024 * 1024
+CHUNK = 256 * 1024 * 1024     # one append request carries at most this much
+HEAD_BYTES = 64 * 1024        # fingerprint of a file's start: detects a rewrite
 STOP_GRACE_S = 300
 
 # two .out formats: verbose blocks ("Time Step  N  <date>\n Step Size: X s, Total Time: T s")
@@ -84,23 +88,83 @@ class Portal:
             shutil.copyfileobj(r, f)
 
     def upload(self, local_path, name, retries=3):
-        u = urllib.parse.urlparse(self._url("files/" + urllib.parse.quote(name)))
+        """Whole file, replacing what the portal has."""
         size = os.path.getsize(local_path)
+        with open(local_path, "rb") as f:
+            status, _ = self._post_file(name, f, size, retries=retries)
+        return status == 200
+
+    def append(self, local_path, name, offset, retries=3):
+        """Send bytes from `offset` to the current end of the file. The portal appends them
+        if it holds exactly `offset` bytes whose start matches ours; otherwise it answers 409
+        with its size and we restart from there (0 when the file was rewritten).
+        Returns the portal's size after the call, or None on failure."""
+        with open(local_path, "rb") as f:
+            head = hashlib.sha256(f.read(HEAD_BYTES)).hexdigest()
+            size = os.fstat(f.fileno()).st_size
+            while offset < size:
+                n = min(CHUNK, size - offset)
+                f.seek(offset)
+                status, body = self._post_file(name, _Slice(f, n), n, retries=retries, query=f"offset={offset}", extra={"X-Head-Sha256": head})
+                if status == 200:
+                    offset = int(body.get("size", offset + n))
+                elif status == 409:
+                    offset = int(body.get("size", 0))
+                    if offset > size:
+                        offset = 0
+                    log(f"append {name}: portal has {offset} B, continuing from there")
+                else:
+                    return None
+        return offset
+
+    def _post_file(self, name, body, length, retries=3, query="", extra=None):
+        u = urllib.parse.urlparse(self._url("files/" + urllib.parse.quote(name)))
+        path = u.path + ("?" + query if query else "")
+        start = body.tell() if hasattr(body, "tell") else 0
         for i in range(retries):
             try:
-                conn = (http.client.HTTPSConnection if u.scheme == "https" else http.client.HTTPConnection)(u.netloc, timeout=600)
-                with open(local_path, "rb") as f:
-                    conn.request("POST", u.path, body=f, headers={**self.headers, "Content-Type": "application/octet-stream", "Content-Length": str(size)})
+                if hasattr(body, "seek"):
+                    body.seek(start)
+                conn = (http.client.HTTPSConnection if u.scheme == "https" else http.client.HTTPConnection)(u.netloc, timeout=900)
+                conn.request("POST", path, body=body, headers={**self.headers, **(extra or {}), "Content-Type": "application/octet-stream", "Content-Length": str(length)})
                 resp = conn.getresponse()
-                body = resp.read()
+                raw = resp.read()
                 conn.close()
-                if resp.status == 200:
-                    return True
-                log(f"upload {name}: HTTP {resp.status} {body[:200]!r}")
+                try:
+                    data = json.loads(raw or b"{}")
+                except ValueError:
+                    data = {}
+                if resp.status in (200, 409):
+                    return resp.status, data
+                log(f"upload {name}: HTTP {resp.status} {raw[:200]!r}")
             except Exception as e:  # noqa: BLE001
                 log(f"upload {name}: {e}")
             time.sleep(10 * (i + 1))
-        return False
+        return None, {}
+
+
+class _Slice:
+    """File-like view of `n` bytes from the current position of `f` (for http.client)."""
+
+    def __init__(self, f, n):
+        self.f, self.n, self.start = f, n, f.tell()
+        self.left = n
+
+    def tell(self):
+        return self.start + (self.n - self.left)
+
+    def seek(self, pos):
+        """Rewind for a retry: back to `pos` within the slice."""
+        self.f.seek(pos)
+        self.left = self.n - (pos - self.start)
+
+    def read(self, size=-1):
+        if self.left <= 0:
+            return b""
+        size = self.left if size is None or size < 0 else min(size, self.left)
+        data = self.f.read(size)
+        self.left -= len(data)
+        return data
 
 
 def tail(path, n=60):
@@ -136,26 +200,53 @@ def run(cmd, **kw):
 
 
 class Uploader:
+    """Keeps the portal's copy of the work directory current.
+
+    Small files (CSV, .out, .smv; < 64 MB) are sent whole every minute. Large files (slices,
+    boundary, 3D smoke) only grow while FDS runs, so every 5 minutes we send just the bytes
+    added since the last time — the user can download the current state during the run at
+    the cost of transferring each byte once."""
+
     def __init__(self, portal, exclude):
         self.portal = portal
         self.exclude = set(exclude)
-        self.sent = {}  # name -> (size, mtime)
+        self.sent = {}      # small files: name -> (size, mtime) last sent
+        self.offsets = {}   # large files: name -> bytes the portal holds
+        self.last_large = 0.0
 
-    def sync(self, final=False):
+    def sync(self, final=False, large=None):
+        """large=None: large files only when their interval has passed (or final)."""
+        if large is None:
+            large = final or time.time() - self.last_large >= LARGE_EVERY_S
+        sent_any = False
         for name in sorted(os.listdir(WORK)):
             p = os.path.join(WORK, name)
             if name in self.exclude or not os.path.isfile(p) or name.endswith(".part"):
                 continue
             st = os.stat(p)
-            sig = (st.st_size, int(st.st_mtime))
-            if self.sent.get(name) == sig:
+            if not final and time.time() - st.st_mtime < 3 and st.st_size <= SMALL_FILE_LIMIT:
+                continue  # small file still being written
+            if st.st_size <= SMALL_FILE_LIMIT and name not in self.offsets:
+                sig = (st.st_size, int(st.st_mtime))
+                if self.sent.get(name) != sig and self.portal.upload(p, name):
+                    self.sent[name] = sig
+                    sent_any = True
                 continue
-            if not final and st.st_size > SMALL_FILE_LIMIT:
+            if not large:
                 continue
-            if not final and time.time() - st.st_mtime < 3:
-                continue  # still being written
-            if self.portal.upload(p, name):
-                self.sent[name] = sig
+            # a file that crossed 64 MB was sent whole before: the portal already has that much
+            have = self.offsets.get(name, self.sent.get(name, (0, 0))[0])
+            if have == st.st_size and not final:
+                continue
+            if have > st.st_size:
+                have = 0  # rewritten and shorter: start over
+            got = self.portal.append(p, name, have)
+            if got is not None:
+                self.offsets[name] = got
+                sent_any = True
+        if large:
+            self.last_large = time.time()
+        return sent_any
 
 
 def main():
@@ -231,6 +322,11 @@ def main():
                 log("resuming")
                 run(["docker", "unpause", "fds"], capture_output=True)
                 paused = False
+            if action == "sync":
+                log("portal asked for a file sync")
+                uploader.sync(large=True)
+                last_upload = time.time()
+                progress("running", synced=True, **(last_step(out_path) or {}))
             if action == "stop" and stop_sent_at is None:
                 log("stop requested: writing stop file")
                 open(os.path.join(WORK, f"{chid}.stop"), "w").close()

@@ -16,4 +16,6 @@ urlpatterns = [
     path("<str:public_id>/kontynuuj/", views.job_continue, name="continue"),
     path("<str:public_id>/pliki/<str:name>", views.job_file, name="file"),
     path("<str:public_id>/linki/", downloads.share_links, name="share"),
+    path("<str:public_id>/synchronizuj/", views.job_sync, name="sync"),
+    path("<str:public_id>/spakuj/", views.job_snapshot, name="snapshot"),
 ]

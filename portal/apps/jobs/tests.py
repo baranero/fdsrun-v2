@@ -327,3 +327,60 @@ class SocialLoginTests(TestCase):
         r = self.client.post(reverse("google_login"))
         self.assertEqual(r.status_code, 302)
         self.assertIn("accounts.google.com", r["Location"])
+
+
+class LiveFilesTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.tmp = tempfile.mkdtemp()
+        self.override = override_settings(JOB_DATA_ROOT=self.tmp)
+        self.override.enable()
+        self.user = get_user_model().objects.create_user(email="l@example.com", password="x", kind="company")
+        self.job = Job(owner=self.user, name="m", filename="m.fds", chid="m", status=Job.Status.RUNNING)
+        self.job.save()
+        self.auth = {"HTTP_AUTHORIZATION": f"Bearer {self.job.agent_token}"}
+
+    def tearDown(self):
+        self.override.disable()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _post(self, name, data, offset=None, head=None):
+        import hashlib
+
+        url = f"/api/compute/jobs/{self.job.public_id}/files/{name}" + (f"?offset={offset}" if offset is not None else "")
+        extra = dict(self.auth)
+        if head is not None:
+            extra["HTTP_X_HEAD_SHA256"] = hashlib.sha256(head[:65536]).hexdigest()
+        return self.client.post(url, data=data, content_type="application/octet-stream", **extra)
+
+    def test_append_protocol(self):
+        a, b = b"A" * 100_000, b"B" * 50_000
+        self.assertEqual(self._post("m_01.sf", a, offset=0).json()["size"], 100_000)
+        self.assertEqual(self._post("m_01.sf", b, offset=100_000, head=a).json()["size"], 150_000)
+        self.assertEqual((self.job.results_dir / "m_01.sf").read_bytes(), a + b)
+        # wrong offset: portal tells its size
+        r = self._post("m_01.sf", b, offset=120_000, head=a)
+        self.assertEqual((r.status_code, r.json()["size"]), (409, 150_000))
+        # same size but a different start (file rewritten): restart from 0
+        r = self._post("m_01.sf", b, offset=150_000, head=b"C" * 70_000)
+        self.assertEqual((r.status_code, r.json()["size"]), (409, 0))
+        self.job.refresh_from_db()
+        self.assertIsNotNone(self.job.files_synced_at)
+
+    def test_sync_request_and_snapshot(self):
+        from unittest import mock
+
+        self.client.login(username="l@example.com", password="x")
+        self.client.post(reverse("jobs:sync", args=[self.job.public_id]))
+        r = self.client.post(f"/api/compute/jobs/{self.job.public_id}/progress", data='{"phase":"running"}', content_type="application/json", **self.auth)
+        self.assertEqual(r.json()["action"], "sync")
+        r = self.client.post(f"/api/compute/jobs/{self.job.public_id}/progress", data='{"phase":"running","synced":true}', content_type="application/json", **self.auth)
+        self.assertEqual(r.json()["action"], "continue")
+        self._post("m_hrr.csv", b"s,kW\nTime,HRR\n0,0\n")
+        with mock.patch("apps.jobs.archives.build_archives_task.delay") as d:
+            self.client.post(reverse("jobs:snapshot", args=[self.job.public_id]))
+        d.assert_called_once_with(self.job.id)
+        page = self.client.get(reverse("jobs:detail", args=[self.job.public_id]))
+        self.assertContains(page, "Pobieranie w trakcie obliczeń")
+        self.assertContains(page, "Pakuję")

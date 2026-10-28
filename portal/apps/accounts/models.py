@@ -40,7 +40,7 @@ class User(AbstractUser):
     email_confirmed = models.BooleanField(default=False)
     totp_secret = models.CharField(max_length=64, blank=True)  # set = 2FA enabled
     totp_backup = models.CharField(max_length=200, blank=True, help_text="hashed one-time backup codes, comma separated")
-    trusted = models.BooleanField(default=False, help_text="Zaufana firma: pobieranie w trakcie i faktura zbiorcza")
+    trusted = models.BooleanField(default=False, help_text="Zaufana firma: faktura zbiorcza, wyższy limit na zlecenie")
     per_job_limit_pln = models.DecimalField(max_digits=9, decimal_places=2, default=300)
 
     USERNAME_FIELD = "email"

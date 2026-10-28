@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -105,6 +106,39 @@ def _project_for(user, name):
 
 @login_required
 @require_POST
+def job_sync(request, public_id):
+    """Ask the machine to send everything it has now (instead of waiting up to 5 minutes)."""
+    job = _own_job(request, public_id)
+    if job.is_active:
+        job.sync_requested_at = timezone.now()
+        job.save(update_fields=["sync_requested_at"])
+        log_event(job, "sync_requested", actor=request.user.email)
+        messages.info(request, "Maszyna dośle bieżące pliki w ciągu kilkunastu sekund (duże pliki — tylko przyrost od ostatniej wysyłki).")
+    return redirect(reverse("jobs:detail", args=[public_id]) + "#pliki")
+
+
+@login_required
+@require_POST
+def job_snapshot(request, public_id):
+    """Pack what the portal holds right now into the archives, while the job runs."""
+    job = _own_job(request, public_id)
+    if job.is_active and job.result_files() and not archives.archives_building(job):
+        (archives.archive_dir(job)).mkdir(parents=True, exist_ok=True)
+        (archives.archive_dir(job) / "building").write_text("1\n")
+        (archives.archive_dir(job) / "ready").unlink(missing_ok=True)
+        try:
+            archives.build_archives_task.delay(job.id)
+        except Exception:  # noqa: BLE001  (queue down: do not leave a stuck "packing" marker)
+            (archives.archive_dir(job) / "building").unlink(missing_ok=True)
+            messages.error(request, "Nie udało się zlecić pakowania — spróbuj za chwilę. Pojedyncze pliki możesz pobierać od razu.")
+            return redirect(reverse("jobs:detail", args=[public_id]) + "#pliki")
+        log_event(job, "snapshot_requested", actor=request.user.email)
+        messages.info(request, "Pakuję bieżący stan wyników. Archiwa pojawią się tu za chwilę; obliczenia biegną dalej.")
+    return redirect(reverse("jobs:detail", args=[public_id]) + "#pliki")
+
+
+@login_required
+@require_POST
 def job_edit(request, public_id):
     job = _own_job(request, public_id)
     form = JobEditForm(request.POST)
@@ -201,7 +235,9 @@ def job_detail(request, public_id):
     }
     ctx["file_groups"] = archives.group_files(ctx["files"])
     ctx["archives"] = archives.archive_files(job)
-    ctx["archives_pending"] = bool(ctx["files"]) and not ctx["archives"] and job.status in (Job.Status.DONE, Job.Status.CANCELLED, Job.Status.FAILED)
+    ctx["archives_building"] = archives.archives_building(job)
+    ctx["archives_pending"] = ctx["archives_building"] or (bool(ctx["files"]) and not ctx["archives"] and job.status in (Job.Status.DONE, Job.Status.CANCELLED, Job.Status.FAILED))
+    ctx["files_size"] = sum(f["size"] for f in ctx["files"])
     if request.htmx:
         return render(request, "jobs/_status.html", ctx)
     return render(request, "jobs/detail.html", ctx)

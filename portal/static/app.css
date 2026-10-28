@@ -357,3 +357,9 @@ button.link { background: none; border: 0; color: var(--accent-ink); font: inher
 .kind:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 .kind .ticks { font: 12px var(--mono); color: var(--muted); }
 .auth .notice { font-size: 13px; }
+
+/* ---------- files during the run ---------- */
+.live-box { display: grid; grid-template-columns: 1fr auto; gap: 14px 24px; align-items: center; padding: 16px 18px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--accent-line); margin-bottom: 8px; }
+.live-box h3 { margin-bottom: 4px; }
+@media (max-width: 760px) { .live-box { grid-template-columns: 1fr; } }
+h2 small { font-weight: 400; font-size: 13px; }

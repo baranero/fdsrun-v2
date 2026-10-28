@@ -29,6 +29,7 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 
 ## Etap 2 — konta i zlecenia
 - [x] Nowy wygląd (27.10): pasek menu, paleta, tryb ciemny, responsywność; pulpit, lista z filtrami, ekran zlecenia z zakładkami, konsola FDS na żywo, strona główna i cennik/FAQ (dokument „analiza UX i plan nowego interfejsu”)
+- [x] Pobieranie w trakcie obliczeń: małe pliki co minutę, duże co 5 min przyrostowo (append z kontrolą początku pliku), przyciski „Zsynchronizuj teraz” i „Spakuj bieżący stan” (28.10)
 - [x] Pobieranie: archiwa CSV/Smokeview/wszystko po zakończeniu, Caddy serwuje pliki z HTTP Range (wznawianie), linki podpisane na 7 dni bez logowania, `curl -C -`/`wget -c`
 - [x] Foldery projektów (przy wgrywaniu i w edycji zlecenia), nazwa i notatka zlecenia
 - [x] Logowanie Google/GitHub/Microsoft (django-allauth; przyciski widoczne po wpisaniu kluczy — docs/sekrety.md)

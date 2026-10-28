@@ -14,6 +14,7 @@ from celery import shared_task
 from django.conf import settings
 from django.utils.crypto import constant_time_compare, salted_hmac
 from django.urls import reverse
+from django.utils import timezone
 
 LINK_MAX_AGE = 7 * 24 * 3600  # signed links are valid for a week
 SIGNER_SALT = "fdsrun.download"
@@ -96,8 +97,20 @@ def archive_files(job):
         p = d / archive_name(job, key)
         if p.is_file():
             sha = (d / (p.name + ".sha256")).read_text().split()[0] if (d / (p.name + ".sha256")).exists() else ""
-            out.append({"key": key, "title": title, "desc": desc, "name": p.name, "size": p.stat().st_size, "sha256": sha})
+            out.append({"key": key, "title": title, "desc": desc, "name": p.name, "size": p.stat().st_size, "sha256": sha,
+                        "built": timezone.datetime.fromtimestamp((d / "ready").stat().st_mtime, tz=timezone.get_current_timezone())})
     return out
+
+
+def archives_building(job) -> bool:
+    """True while archives are being packed; a marker older than 2 h is treated as stale."""
+    d = archive_dir(job)
+    marker = d / "building"
+    if not marker.exists() or (d / "ready").exists():
+        return False
+    import time
+
+    return time.time() - marker.stat().st_mtime < 7200
 
 
 def build_archives(job) -> int:
@@ -109,6 +122,7 @@ def build_archives(job) -> int:
     d = archive_dir(job)
     d.mkdir(parents=True, exist_ok=True)
     (d / "ready").unlink(missing_ok=True)
+    (d / "building").write_text("1\n")
     n = 0
     for key, _, _, groups in ARCHIVES:
         chosen = [p for p in files if groups is None or group_of(p.name) in groups]
@@ -128,6 +142,7 @@ def build_archives(job) -> int:
         (d / (target.name + ".sha256")).write_text(f"{h.hexdigest()}  {target.name}\n")
         n += 1
     (d / "ready").write_text("ok\n")
+    (d / "building").unlink(missing_ok=True)
     return n
 
 
@@ -136,9 +151,12 @@ def build_archives_task(job_id):
     from .models import Job, log_event
 
     job = Job.objects.get(id=job_id)
-    n = build_archives(job)
+    try:
+        n = build_archives(job)
+    finally:
+        (archive_dir(job) / "building").unlink(missing_ok=True)
     if n:
-        log_event(job, "archives", f"{n} archiwa gotowe", actor="system")
+        log_event(job, "archives", f"{n} archiwa gotowe" + (" (stan w trakcie obliczeń)" if job.is_active else ""), actor="system")
 
 
 # ----- download links -----

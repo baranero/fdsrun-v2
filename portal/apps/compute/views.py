@@ -126,10 +126,15 @@ def job_progress(request, job):
     if "log_tail" in data:
         job.log_tail = str(data["log_tail"])[-20000:]
     job.save()
+    if data.get("synced") and job.sync_requested_at:
+        Job.objects.filter(id=job.id).update(sync_requested_at=None)
+        job.sync_requested_at = None
     if job.stop_requested:
         action = "stop"
     elif job.paused_at and not job.budget_confirmed:
         action = "pause"
+    elif job.sync_requested_at:
+        action = "sync"
     else:
         action = "continue"
     return JsonResponse({"action": action})
@@ -138,16 +143,39 @@ def job_progress(request, job):
 @require_POST
 @agent_auth
 def job_upload(request, job, name):
+    """Whole file (no query) or an append: ?offset=N with the bytes from N onwards.
+    An append is accepted only when we hold exactly N bytes and our first 64 KB hash to the
+    agent's X-Head-Sha256 (a rewritten file restarts from 0); otherwise 409 + our size."""
     if not SAFE_NAME.match(name) or name in (".", ".."):
         return HttpResponse("bad name", status=400)
     job.results_dir.mkdir(parents=True, exist_ok=True)
     target: Path = job.results_dir / name
-    tmp = target.with_suffix(target.suffix + ".part")
-    with open(tmp, "wb") as f:
-        for chunk in iter(lambda: request.read(1024 * 1024), b""):
-            f.write(chunk)
-    tmp.replace(target)
-    Job.objects.filter(id=job.id).update(last_heartbeat=timezone.now())
+    offset = request.GET.get("offset")
+    if offset is None:
+        tmp = target.with_suffix(target.suffix + ".part")
+        with open(tmp, "wb") as f:
+            for chunk in iter(lambda: request.read(1024 * 1024), b""):
+                f.write(chunk)
+        tmp.replace(target)
+    else:
+        try:
+            offset = int(offset)
+        except ValueError:
+            return HttpResponse("bad offset", status=400)
+        have = target.stat().st_size if target.exists() else 0
+        if offset > 0:
+            head_ok = False
+            if have == offset:
+                import hashlib
+
+                with open(target, "rb") as f:
+                    head_ok = hashlib.sha256(f.read(64 * 1024)).hexdigest() == request.headers.get("X-Head-Sha256", "")
+            if not head_ok:
+                return JsonResponse({"ok": False, "size": 0 if have == offset else have}, status=409)
+        with open(target, "ab" if offset > 0 else "wb") as f:
+            for chunk in iter(lambda: request.read(1024 * 1024), b""):
+                f.write(chunk)
+    Job.objects.filter(id=job.id).update(last_heartbeat=timezone.now(), files_synced_at=timezone.now())
     return JsonResponse({"ok": True, "size": target.stat().st_size})
 
 
