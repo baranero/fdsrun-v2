@@ -340,3 +340,11 @@ button.link { background: none; border: 0; color: var(--accent-ink); font: inher
 .chip.on .cnt { color: var(--bg); }
 .cell-progress .pct b { font-weight: 600; }
 .pager { justify-content: center; }
+
+/* ---------- dashboard: active job cards ---------- */
+.active-list { display: grid; gap: 10px; }
+.active-card { display: grid; grid-template-columns: minmax(200px, 1.4fr) auto minmax(180px, 1.2fr) auto auto auto; gap: 16px 24px; align-items: center; padding: 14px 18px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); }
+.active-card .a-progress { display: grid; gap: 4px; } .active-card .pct { font: 12px var(--mono); color: var(--muted); }
+.active-card .a-price b { font: 600 16px var(--mono); color: var(--accent-ink); }
+.active-card .a-actions { display: flex; gap: 6px; }
+@media (max-width: 900px) { .active-card { grid-template-columns: 1fr 1fr; } .active-card .a-progress { grid-column: 1 / -1; } }

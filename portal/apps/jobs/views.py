@@ -33,10 +33,21 @@ def dashboard(request):
     month = mine.filter(finished_at__year=now.year, finished_at__month=now.month)
     spent = sum(j.price_pln for j in month)
     hours = sum((j.wall_seconds or 0) for j in month) / 3600
+    projected = spent + sum(j.projected_price_pln for j in active)
+    storage = 0
+    for j in mine.exclude(status=Job.Status.DRAFT):
+        if j.results_dir.exists():
+            storage += sum(p.stat().st_size for p in j.results_dir.iterdir() if p.is_file())
+            if archives.archive_dir(j).exists():
+                storage += sum(p.stat().st_size for p in archives.archive_dir(j).iterdir() if p.is_file())
+    recent = [dict(job=j, archive=next((a for a in archives.archive_files(j) if a["key"] == "all"), None)) for j in recent]
     return render(request, "jobs/dashboard.html", {
         "active": active, "recent": recent, "drafts": drafts,
-        "spent": spent, "month_jobs": month.count(), "month_hours": hours,
-        "total_jobs": mine.exclude(status=Job.Status.DRAFT).count(),
+        "n_running": sum(1 for j in active if j.status == Job.Status.RUNNING),
+        "n_preparing": sum(1 for j in active if j.status != Job.Status.RUNNING),
+        "spent": spent, "projected": projected, "month_jobs": month.count(), "month_hours": hours,
+        "month_done": month.filter(status=Job.Status.DONE).count(), "month_bad": month.exclude(status=Job.Status.DONE).count(),
+        "total_jobs": mine.exclude(status=Job.Status.DRAFT).count(), "storage": storage,
     })
 
 
