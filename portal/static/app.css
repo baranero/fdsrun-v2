@@ -348,3 +348,12 @@ button.link { background: none; border: 0; color: var(--accent-ink); font: inher
 .active-card .a-price b { font: 600 16px var(--mono); color: var(--accent-ink); }
 .active-card .a-actions { display: flex; gap: 6px; }
 @media (max-width: 900px) { .active-card { grid-template-columns: 1fr 1fr; } .active-card .a-progress { grid-column: 1 / -1; } }
+
+/* ---------- account type cards ---------- */
+.kinds { border: 0; padding: 0; margin: 0 0 16px; display: grid; gap: 8px; }
+.kinds legend { font-weight: 500; font-size: 14px; margin-bottom: 6px; padding: 0; }
+.kind { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); cursor: pointer; font-weight: 400; margin: 0; line-height: 1.5; }
+.kind input { margin-top: 4px; }
+.kind:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.kind .ticks { font: 12px var(--mono); color: var(--muted); }
+.auth .notice { font-size: 13px; }

@@ -14,7 +14,7 @@ class RegisterForm(UserCreationForm):
 class SocialSignupForm(forms.Form):
     """Shown once, on the first login through Google/GitHub/Microsoft: pick the account type."""
 
-    kind = forms.ChoiceField(label="Rodzaj konta", choices=User.Kind.choices, initial=User.Kind.COMPANY, widget=forms.RadioSelect)
+    kind = forms.ChoiceField(label="Rodzaj konta", choices=User.Kind.choices, initial=User.Kind.COMPANY)
 
     def __init__(self, *args, **kwargs):
         self.sociallogin = kwargs.pop("sociallogin", None)

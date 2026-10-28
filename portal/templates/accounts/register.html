@@ -6,8 +6,12 @@
   {% include "socialaccount/_buttons.html" %}
   {% if social_providers %}<div class="or">albo e-mailem i hasłem</div>{% endif %}
   <form method="post" action="{% url 'accounts:register' %}">{% csrf_token %}
-    {{ form.as_p }}
-    <p class="muted small">Konto firmowe: faktura VAT, płatność przelewem w terminie. Konto studenckie: połowa stawki po potwierdzeniu statusu. Konto prywatne: płatność kartą.</p>
+    {% if form.non_field_errors %}<ul class="errorlist" style="margin-bottom:12px">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    <p><label for="id_email">E-mail</label><input type="email" name="email" id="id_email" value="{{ form.email.value|default:'' }}" required autocomplete="email">{{ form.email.errors }}</p>
+    {% include "accounts/_kinds.html" with kind=form.kind.value %}
+    {{ form.kind.errors }}
+    <p><label for="id_password1">Hasło</label><input type="password" name="password1" id="id_password1" required autocomplete="new-password">{{ form.password1.errors }}<span class="help">Co najmniej 8 znaków, nie tylko cyfry.</span></p>
+    <p><label for="id_password2">Powtórz hasło</label><input type="password" name="password2" id="id_password2" required autocomplete="new-password">{{ form.password2.errors }}</p>
     <button class="btn primary lg" type="submit">Załóż konto</button>
     <p class="muted small" style="margin-top:12px">Zakładając konto, akceptujesz <a href="{% url 'legal:terms' %}">regulamin</a> i <a href="{% url 'legal:privacy' %}">politykę prywatności</a>; dla kont firmowych także <a href="{% url 'legal:dpa' %}">umowę powierzenia danych</a>.</p>
   </form>

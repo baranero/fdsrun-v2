@@ -1,0 +1,6 @@
+<fieldset class="kinds">
+  <legend>Rodzaj konta</legend>
+  <label class="kind"><input type="radio" name="kind" value="company" {% if kind == 'company' or not kind %}checked{% endif %}><span><strong>Firma</strong> <span class="muted small">pracownie projektowe, inżynierowie, rzeczoznawcy</span><br><span class="ticks">faktura VAT 23% · płatność przelewem w terminie 14 dni</span></span></label>
+  <label class="kind"><input type="radio" name="kind" value="student" {% if kind == 'student' %}checked{% endif %}><span><strong>Student</strong> <span class="pill ok">−50% stawki</span><br><span class="ticks">prace dyplomowe i badania · weryfikacja legitymacji lub adresu uczelni</span></span></label>
+  <label class="kind"><input type="radio" name="kind" value="person" {% if kind == 'person' %}checked{% endif %}><span><strong>Osoba prywatna</strong><br><span class="ticks">cele prywatne i testy · płatność kartą po obliczeniach</span></span></label>
+</fieldset>

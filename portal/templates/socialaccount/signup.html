@@ -2,18 +2,14 @@
 {% block title %}Dokończ zakładanie konta · fdsrun{% endblock %}
 {% block content %}
 <section class="auth">
-  <div><h1>Dokończ zakładanie konta</h1><p class="muted">Logujesz się przez {{ account.get_provider.name }} jako <strong>{{ account.extra_data.email|default:form.email.value|default:email }}</strong>. Wybierz rodzaj konta — decyduje o stawce i fakturach.</p></div>
+  <div><h1>Dokończ zakładanie konta</h1><p class="muted">Logujesz się przez {{ account.get_provider.name }} jako <strong>{{ account.extra_data.email|default:form.email.value|default:email }}</strong>. Rodzaj konta decyduje o stawce i sposobie fakturowania.</p></div>
   <form method="post" action="{% url 'socialaccount_signup' %}">{% csrf_token %}
     {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
     {% for f in form %}{% if f.name != 'kind' %}{{ f.as_hidden }}{% endif %}{% endfor %}
-    <fieldset class="kinds">
-      <label class="kind"><input type="radio" name="kind" value="company" checked><span><strong>Firma</strong><br><span class="muted small">faktura VAT, płatność przelewem w terminie</span></span></label>
-      <label class="kind"><input type="radio" name="kind" value="student"><span><strong>Student</strong><br><span class="muted small">połowa stawki po potwierdzeniu statusu</span></span></label>
-      <label class="kind"><input type="radio" name="kind" value="person"><span><strong>Osoba prywatna</strong><br><span class="muted small">płatność kartą</span></span></label>
-    </fieldset>
-    <button class="btn primary lg" type="submit">Załóż konto</button>
+    {% include "accounts/_kinds.html" with kind="company" %}
+    <div class="notice">Dane firmy albo potwierdzenie statusu studenta uzupełnisz przed uruchomieniem pierwszych obliczeń.</div>
+    <button class="btn primary lg" type="submit" style="margin-top:14px">Załóż konto</button>
     <p class="muted small" style="margin-top:12px">Zakładając konto, akceptujesz <a href="{% url 'legal:terms' %}">regulamin</a> i <a href="{% url 'legal:privacy' %}">politykę prywatności</a>.</p>
   </form>
 </section>
-<style>.kinds { border: 0; padding: 0; margin: 0 0 16px; display: grid; gap: 8px; } .kind { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r); cursor: pointer; font-weight: 400; } .kind:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }</style>
 {% endblock %}
