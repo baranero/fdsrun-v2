@@ -106,11 +106,13 @@
   {% if archives %}
   <section>
     <h2>Pobierz jednym plikiem</h2>
-    <div class="tiles">
+    <div class="dl-cards">
       {% for a in archives %}
-      <a class="tile{% if a.key == 'csv' %} key{% endif %}" href="{% url 'download' job.public_id a.name %}" style="color:inherit">
-        <span class="k">{{ a.title }}</span><span class="v">{{ a.size|filesizeformat }}</span><span class="s">{{ a.desc }}</span>
-      </a>
+      <div class="dl-card{% if a.key == 'all' %} key{% endif %}">
+        <div class="row"><h3>{{ a.title }}</h3><span class="size">{{ a.size|filesizeformat }}</span></div>
+        <p class="muted small">{{ a.desc }}</p>
+        <a class="btn{% if a.key == 'all' %} primary{% endif %}" href="{% url 'download' job.public_id a.name %}">Pobierz {{ a.name }}</a>
+      </div>
       {% endfor %}
     </div>
     <div class="actions">
@@ -128,8 +130,8 @@
     <section class="file-group">
       <h3>{{ g.title }} <small>{{ g.files|length }} {% if g.files|length == 1 %}plik{% else %}plików{% endif %}, {{ g.size|filesizeformat }}</small></h3>
       <div class="table-wrap"><table>
-        <thead><tr><th>Plik</th><th class="num">Rozmiar</th><th>Zapisano</th></tr></thead>
-        <tbody>{% for f in g.files %}<tr><td><a class="mono" href="{% url 'download' job.public_id f.name %}">{{ f.name }}</a></td><td class="num">{{ f.size|filesizeformat }}</td><td class="muted small nowrap">{{ f.mtime|date:"d.m.Y H:i" }}</td></tr>{% endfor %}</tbody>
+        <thead><tr><th>Plik</th><th>Opis</th><th class="num">Rozmiar</th><th>Zapisano</th><th></th></tr></thead>
+        <tbody>{% for f in g.files %}<tr><td><a class="mono" href="{% url 'download' job.public_id f.name %}">{{ f.name }}</a></td><td class="muted wrap">{{ f.desc }}</td><td class="num">{{ f.size|filesizeformat }}</td><td class="muted small nowrap">{{ f.mtime|date:"d.m.Y H:i" }}</td><td class="num"><a class="btn sm" href="{% url 'download' job.public_id f.name %}">Pobierz</a></td></tr>{% endfor %}</tbody>
       </table></div>
     </section>
     {% endfor %}

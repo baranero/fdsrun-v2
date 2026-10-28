@@ -16,10 +16,10 @@
       <div class="readout key"><span class="k">Szacowany czas</span><span class="v">{{ job.est_hours|floatformat:1 }}<small>h</small></span><span class="s">{{ job.procs }} proc, {{ job.server_type }}</span></div>
       <div class="readout key"><span class="k">Szacowana cena</span><span class="v">{{ job.est_price_pln|floatformat:0 }}<small>zł</small></span><span class="s">netto, płatne po obliczeniach</span></div>
     {% else %}
-      <div class="readout"><span class="k">Krok</span><span class="v">{{ job.progress_step }}</span><span class="s">Δt = {{ job.progress_dt|floatformat:4 }} s</span></div>
+      <div class="readout"><span class="k">Krok</span><span class="v">{{ job.progress_step }}<small>Δt = {{ job.progress_dt|floatformat:4 }} s</small></span><span class="s">{% if job.cfl_max is not None %}CFL max {{ job.cfl_max|floatformat:2 }}{% else %}krok czasowy FDS{% endif %}</span></div>
       <div class="readout"><span class="k">Czas symulacji</span><span class="v">{{ job.progress_t|floatformat:1 }}<small>/ {{ job.sim_time|floatformat:0 }} s</small></span><span class="s">{{ job.progress_pct }}%</span></div>
       {% if job.is_active %}
-        <div class="readout key"><span class="k">Pozostało</span><span class="v">{% if job.eta_hours is None %}—{% else %}{{ job.eta_hours|floatformat:1 }}<small>h</small>{% endif %}</span><span class="s">liczy się {{ job.wall_text }}</span></div>
+        <div class="readout key"><span class="k">Pozostało</span><span class="v">{% if job.eta_hours is None %}—{% else %}{{ job.eta_hours|floatformat:1 }}<small>h</small>{% endif %}</span><span class="s">{% if job.eta_clock %}koniec ok. {{ job.eta_clock|date:"D H:i" }}, {% endif %}liczy się {{ job.wall_text }}</span></div>
         <div class="readout key"><span class="k">Przewidywana cena</span><span class="v">{{ job.projected_price_pln|floatformat:0 }}<small>zł</small></span><span class="s">szacunek przed startem {{ job.est_price_pln|floatformat:0 }} zł</span></div>
       {% else %}
         <div class="readout"><span class="k">Czas obliczeń</span><span class="v">{{ job.wall_text }}</span><span class="s">{{ job.wall_seconds|floatformat:0 }} s na {{ job.procs }} proc, {{ job.server_type }}</span></div>
@@ -29,6 +29,6 @@
   </div>
   {% if job.status != 'draft' %}
   <div class="track{% if job.status == 'done' %} done{% endif %}"><span style="width:{{ job.progress_pct }}%"></span></div>
-  <div class="tline"><span>{{ job.procs }} procesów MPI na {{ job.server_type }}</span><span>{% if job.started_at %}start {{ job.started_at|date:"d.m H:i" }}{% endif %}{% if job.finished_at %}, koniec {{ job.finished_at|date:"d.m H:i" }}{% endif %}{% if job.expires_at %}, wyniki do {{ job.expires_at|date:"d.m.Y" }}{% endif %}</span></div>
+  <div class="tline"><span>{{ job.procs }} procesów MPI na {{ job.server_type }} · postęp {{ job.progress_pct }}%</span><span>{% if job.started_at %}start {{ job.started_at|date:"d.m H:i" }}{% endif %}{% if job.finished_at %}, koniec {{ job.finished_at|date:"d.m H:i" }}{% endif %}{% if job.expires_at %}, wyniki do {{ job.expires_at|date:"d.m.Y" }}{% endif %}</span></div>
   {% endif %}
 </div>

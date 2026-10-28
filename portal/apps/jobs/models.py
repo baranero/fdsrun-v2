@@ -147,6 +147,24 @@ class Job(models.Model):
         return self.est_price_pln * self.projected_hours / self.est_hours
 
     @property
+    def eta_clock(self):
+        """Expected finish as a datetime, or None."""
+        if self.eta_hours is None or not self.is_active:
+            return None
+        return timezone.now() + timezone.timedelta(hours=self.eta_hours)
+
+    @property
+    def cfl_max(self):
+        """Last 'Max CFL number' reported in the .out tail, or None."""
+        import re
+
+        m = re.findall(r"Max CFL number:\s*([0-9.E+-]+)", self.out_tail or "")
+        try:
+            return float(m[-1]) if m else None
+        except ValueError:
+            return None
+
+    @property
     def wall_text(self):
         """Wall time as '1 h 58 min' / '12 min' / '45 s'."""
         s = int(self.wall_seconds or 0)

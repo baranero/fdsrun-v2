@@ -10,7 +10,6 @@
       <a href="{% url 'download' job.public_id 'fds_stdout.log' %}">stdout</a>
     </div>
   </div>
-  <pre id="console-pre">{% if text %}{% for line in text.splitlines %}<span class="{% if 'ERROR' in line or 'Bus error' in line or 'KILLED' in line %}ln-err{% elif 'WARNING' in line or 'Warning' in line %}ln-warn{% elif 'Time Step' in line or 'Step Size' in line or 'Mesh' in line %}ln-step{% else %}ln-dim{% endif %}">{{ line }}</span>
-{% endfor %}{% else %}<span class="ln-dim">{% if job.status == 'draft' %}Konsola pojawi się po uruchomieniu obliczeń.{% elif job.is_active %}Czekam na pierwsze linie z FDS…{% else %}Brak zapisu konsoli dla tego zlecenia.{% endif %}</span>{% endif %}</pre>
+  <pre id="console-pre">{% if text %}{% for line in text.splitlines %}<span class="ln {% if 'ERROR' in line or 'Bus error' in line or 'KILLED' in line %}ln-err{% elif 'WARNING' in line or 'Warning' in line %}ln-warn{% elif 'Time Step' in line or 'Step Size' in line or 'STOP' in line %}ln-step{% else %}ln-dim{% endif %}">{{ line }}</span>{% endfor %}{% else %}<span class="ln-dim">{% if job.status == 'draft' %}Konsola pojawi się po uruchomieniu obliczeń.{% elif job.is_active %}Czekam na pierwsze linie z FDS…{% else %}Brak zapisu konsoli dla tego zlecenia.{% endif %}</span>{% endif %}</pre>
 </div>
 <script>(function(){var c=document.getElementById('console'),p=document.getElementById('console-pre'),a=document.getElementById('autoscroll'),e=document.getElementById('onlyerr');if(e&&c)c.classList.toggle('filter-err',e.checked);if(p&&(!a||a.checked))p.scrollTop=p.scrollHeight;})();</script>

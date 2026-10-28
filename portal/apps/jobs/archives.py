@@ -33,6 +33,34 @@ ARCHIVES = (
 )
 
 
+DESCRIPTIONS = (
+    ("_hrr.csv", "Krzywa mocy pożaru (HRR) i bilans energii"),
+    ("_devc.csv", "Odczyty czujników (DEVC)"),
+    ("_ctrl.csv", "Stany sterowników (CTRL)"),
+    ("_mass.csv", "Bilans masy gatunków"),
+    ("_steps.csv", "Krok czasowy i CFL w czasie"),
+    ("_cpu.csv", "Czas procesora na proces MPI"),
+    ("_evac.csv", "Wyniki ewakuacji"),
+    (".smv", "Główny plik projektu Smokeview"),
+    (".sf", "Przekrój (slice) — otwórz w Smokeview"),
+    (".bf", "Dane na powierzchniach (boundary)"),
+    (".s3d", "Dym i widoczność 3D"),
+    (".iso", "Izopowierzchnie"),
+    (".prt5", "Cząstki"),
+    (".q", "Pole 3D (plot3d)"),
+    (".out", "Główny log FDS: kroki, ostrzeżenia, błędy"),
+    ("fds_stdout.log", "Wyjście programu i MPI (diagnostyka)"),
+    (".fds", "Plik wejściowy, który policzono"),
+    (".end", "Znacznik zakończenia biegu"),
+    ("_git.txt", "Wersja FDS"),
+)
+
+
+def describe(name: str) -> str:
+    low = name.lower()
+    return next((d for suffix, d in DESCRIPTIONS if low.endswith(suffix)), "")
+
+
 def group_of(name: str) -> str:
     ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
     return next((g[0] for g in FILE_GROUPS if ext in g[3]), "other")
@@ -44,6 +72,7 @@ def group_files(files):
     groups["other"] = {"key": "other", "title": "Inne", "desc": "", "files": [], "size": 0}
     for f in files:
         g = groups[group_of(f["name"])]
+        f = dict(f, desc=describe(f["name"]))
         g["files"].append(f)
         g["size"] += f["size"]
     return [g for g in groups.values() if g["files"]]
