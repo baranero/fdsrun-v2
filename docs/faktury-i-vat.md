@@ -18,7 +18,7 @@ Usługodawca: Fire Protection Solutions Jakub Baran, JDG, siedziba w Polsce (CEI
 - ING Księgowość ma moduł KSeF — wysyłka z poziomu ING, nie z naszego API. Do sprawdzenia: czy faktura utworzona przez API trafia do KSeF automatycznie.
 
 ## VAT — kto, co, jaka stawka
-Usługa: obliczenia w chmurze = usługa elektroniczna / usługa dla podatnika (art. 28b). Zakładam, że FP Solutions jest czynnym podatnikiem VAT (do potwierdzenia; jeśli zwolnienie podmiotowe — patrz niżej).
+Usługa: obliczenia w chmurze = usługa elektroniczna / usługa dla podatnika (art. 28b). **Klient potwierdził 28.10.2026: czynny podatnik VAT w Polsce, bez rejestracji VAT-UE.** Wniosek: do pierwszej sprzedaży firmie z UE trzeba złożyć VAT-R (aktualizacja, część C.3, pole 60). Do tego czasu portal nie wystawia faktur z odwrotnym obciążeniem dla firm z UE (blokada w formularzu danych do faktury z komunikatem).
 
 | Klient | Miejsce opodatkowania | Stawka na fakturze | Dodatkowe obowiązki |
 | --- | --- | --- | --- |
