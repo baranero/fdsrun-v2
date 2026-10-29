@@ -40,6 +40,7 @@ class User(AbstractUser):
     email_confirmed = models.BooleanField(default=False)
     totp_secret = models.CharField(max_length=64, blank=True)  # set = 2FA enabled
     totp_backup = models.CharField(max_length=200, blank=True, help_text="hashed one-time backup codes, comma separated")
+    student_verified = models.BooleanField(default=False, help_text="Status studenta potwierdzony (domena uczelni albo administrator)")
     trusted = models.BooleanField(default=False, help_text="Zaufana firma: faktura zbiorcza, wyższy limit na zlecenie")
     per_job_limit_pln = models.DecimalField(max_digits=9, decimal_places=2, default=300)
 
@@ -49,6 +50,17 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+    def check_student_domain(self):
+        """Set student_verified when the e-mail belongs to an academic domain (decision 29.10)."""
+        from fnmatch import fnmatch
+
+        from django.conf import settings
+
+        domain = "." + self.email.rsplit("@", 1)[-1].lower()
+        if self.kind == self.Kind.STUDENT and any(fnmatch(domain, "*" + d) for d in settings.STUDENT_DOMAINS):
+            self.student_verified = True
+        return self.student_verified
 
     @property
     def two_factor_enabled(self):

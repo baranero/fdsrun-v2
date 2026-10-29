@@ -84,9 +84,13 @@ def register(request):
     form = RegisterForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.save()
+        if user.check_student_domain():
+            user.save(update_fields=["student_verified"])
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")  # login first: the token depends on last_login
         send_confirmation(user)
         messages.info(request, "Konto założone. Wysłaliśmy e-mail z linkiem potwierdzającym adres — kliknij go, żeby uruchamiać obliczenia.")
+        if user.kind == user.Kind.STUDENT and not user.student_verified:
+            messages.warning(request, "Adres e-mail nie jest w domenie uczelni, więc stawka studencka czeka na potwierdzenie. Napisz na " + settings.COMPANY["email"] + " ze zdjęciem legitymacji — do tego czasu obowiązuje stawka standardowa.")
         return redirect("jobs:dashboard")
     return render(request, "accounts/register.html", {"form": form})
 

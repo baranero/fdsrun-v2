@@ -108,6 +108,10 @@ jobs:
           APP_GITHUB_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
           APP_MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
           APP_MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
+          APP_STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          APP_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          APP_STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          APP_ING_API_KEY: ${{ secrets.ING_API_KEY }}
         run: python3 deploy/push-update.py
       - name: Record the address in the "Adresy środowisk" issue
         if: steps.server.outputs.ip != ''

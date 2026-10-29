@@ -76,6 +76,7 @@ def user_update(request, user_id):
     u = get_object_or_404(User, id=user_id)
     u.kind = request.POST.get("kind", u.kind)
     u.trusted = request.POST.get("trusted") == "on"
+    u.student_verified = request.POST.get("student_verified") == "on"
     u.is_active = request.POST.get("is_active") == "on"
     try:
         u.per_job_limit_pln = float(request.POST.get("per_job_limit_pln", u.per_job_limit_pln))

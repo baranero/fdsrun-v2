@@ -21,7 +21,8 @@ class SocialAdapter(DefaultSocialAccountAdapter):
         user.email_confirmed = True
         if form is not None:
             user.kind = form.cleaned_data.get("kind") or user.kind
-        user.save(update_fields=["email_confirmed", "kind"])
+        user.check_student_domain()
+        user.save(update_fields=["email_confirmed", "kind", "student_verified"])
         return user
 
     def get_connect_redirect_url(self, request, socialaccount):

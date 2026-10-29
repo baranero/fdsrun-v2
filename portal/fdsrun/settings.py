@@ -215,3 +215,14 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 SOCIAL_PROVIDERS_ENABLED = [name for name, cfg in SOCIALACCOUNT_PROVIDERS.items() if cfg["APPS"][0]["client_id"]]
 SOCIALACCOUNT_PROVIDERS = {name: cfg for name, cfg in SOCIALACCOUNT_PROVIDERS.items() if name in SOCIAL_PROVIDERS_ENABLED}
+
+
+# ----- payments and invoicing (stage 3) -----
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = env("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", "")
+ING_API_KEY = env("ING_API_KEY", "")
+
+# Student accounts get the student rate only once verified: automatically for an e-mail in
+# an academic domain, otherwise by the admin in the panel.
+STUDENT_DOMAINS = [d.strip().lower() for d in env("STUDENT_DOMAINS", ".edu.pl,.edu,.ac.uk,.ac.at,.ac.be,.ac.jp,.ac.nz,.edu.au,.uni-*.de,.tu-*.de,.ethz.ch,.epfl.ch,.tudelft.nl,.kth.se,.dtu.dk,.aalto.fi,.ntnu.no,.cvut.cz,.vutbr.cz,.polimi.it,.upm.es,.upc.edu").split(",") if d.strip()]

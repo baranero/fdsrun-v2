@@ -457,3 +457,18 @@ class HideTests(TestCase):
             self.assertIsNone(m.job)
             self.assertIn("h@example.com", m.job_ref)
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+class StudentTests(TestCase):
+    def test_domain_verification_and_rate(self):
+        from apps.jobs.analyzer import multiplier_for
+
+        a = User(email="jan@student.pw.edu.pl", kind="student")
+        b = User(email="jan@gmail.com", kind="student")
+        c = User(email="anna@tu-berlin.de", kind="student")
+        self.assertTrue(a.check_student_domain())
+        self.assertFalse(b.check_student_domain())
+        self.assertTrue(c.check_student_domain())  # TU Berlin matches .tu-*.de
+        self.assertFalse(User(email="x@firma.pl", kind="student").check_student_domain())  # admin decides
+        self.assertEqual(multiplier_for(a), 3.0)
+        self.assertEqual(multiplier_for(b), 6.0)

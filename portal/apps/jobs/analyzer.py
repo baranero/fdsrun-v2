@@ -35,7 +35,7 @@ def analyze_file(path: Path, multiplier: float | None = None) -> dict:
 
 
 def multiplier_for(user) -> float:
-    if getattr(user, "kind", "company") == "student":
+    if getattr(user, "kind", "company") == "student" and getattr(user, "student_verified", False):
         return settings.PRICING["multiplier_student"]
     return settings.PRICING["multiplier_company"]
 

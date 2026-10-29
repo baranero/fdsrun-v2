@@ -3,13 +3,14 @@
 {% block content %}
 <section><h1>Użytkownicy</h1>{% include "panel/_nav.html" %}</section>
 <section>
-  <p class="note">„Zaufany” = pobieranie plików w trakcie obliczeń bez karty i faktura zbiorcza (etap 3). Limit = maksymalna cena jednego zlecenia bez zapisanej karty.</p>
+  <p class="muted small">„Student ✓” = stawka studencka (−50%); ustawia się sama dla e-maili z domen uczelni, resztę zatwierdzasz tutaj po sprawdzeniu legitymacji. „Zaufany” = faktura zbiorcza miesięczna bez karty. Limit = maksymalna cena jednego zlecenia.</p>
   <div class="table-scroll"><table>
-    <tr><th>E-mail</th><th>Rodzaj</th><th>Zaufany</th><th>Aktywny</th><th class="num">Limit [zł]</th><th class="num">Zleceń</th><th class="num">Przychód</th><th>Ostatnie</th><th>Dołączył</th><th></th></tr>
+    <tr><th>E-mail</th><th>Rodzaj</th><th>Student ✓</th><th>Zaufany</th><th>Aktywny</th><th class="num">Limit [zł]</th><th class="num">Zleceń</th><th class="num">Przychód</th><th>Ostatnie</th><th>Dołączył</th><th></th></tr>
     {% for u in users %}<tr>
       <form method="post" action="{% url 'panel:user_update' u.id %}">{% csrf_token %}
       <td>{{ u.email }}{% if u.is_staff %} <span class="pill">admin</span>{% endif %}{% if not u.email_confirmed %} <span class="pill warn">e-mail niepotw.</span>{% endif %}</td>
       <td><select name="kind">{% for v,l in kinds %}<option value="{{ v }}" {% if v == u.kind %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></td>
+      <td>{% if u.kind == 'student' %}<input type="checkbox" name="student_verified" {% if u.student_verified %}checked{% endif %}>{% if not u.student_verified %} <span class="pill warn">do sprawdzenia</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
       <td><input type="checkbox" name="trusted" {% if u.trusted %}checked{% endif %}></td>
       <td><input type="checkbox" name="is_active" {% if u.is_active %}checked{% endif %}></td>
       <td class="num"><input type="number" name="per_job_limit_pln" value="{{ u.per_job_limit_pln|floatformat:0 }}" style="width:90px"></td>
