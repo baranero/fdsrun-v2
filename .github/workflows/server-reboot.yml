@@ -1,0 +1,30 @@
+name: Reboot portal server
+# Restarts the staging portal server through the Hetzner API (no SSH). Containers and the
+# deployer come back on their own. Compute machines are separate and keep running.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "type REBOOT"
+        required: true
+permissions:
+  contents: read
+  issues: write
+jobs:
+  reboot:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'REBOOT'
+    steps:
+      - name: Reboot fdsrun-staging
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          id=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers?name=fdsrun-staging" | python3 -c "import json,sys; print(json.load(sys.stdin)['servers'][0]['id'])")
+          curl -fsS -X POST -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers/$id/actions/reboot" > /tmp/r.json
+          cat /tmp/r.json
+          ip=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers/$id" | python3 -c "import json,sys; print(json.load(sys.stdin)['server']['public_net']['ipv4']['ip'])")
+          for i in $(seq 1 40); do sleep 10; if curl -fsS -m 5 "https://$ip.sslip.io/healthz" >/dev/null 2>&1; then echo "portal up after $((i*10)) s"; up=1; break; fi; done
+          num=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=adresy" --jq '.[0].number')
+          gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$num/comments" -f body="### Reboot $(date -u +%Y-%m-%dT%H:%MZ): ${up:+portal up}${up:-portal NOT up after 400 s}" >/dev/null
+          [ -n "$up" ]
