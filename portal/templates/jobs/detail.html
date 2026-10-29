@@ -7,12 +7,19 @@
     <div><h1>{{ job.name }}</h1><p class="sub">{% if job.project %}<a href="{% url 'jobs:list' %}?p={{ job.project.name|urlencode }}">{{ job.project.name }}</a> · {% endif %}{{ job.filename }}{% if job.chid and job.chid != job.name %}, CHID {{ job.chid }}{% endif %}, FDS {{ job.fds_version }}</p>{% if job.note %}<p class="sub note">{{ job.note|linebreaksbr }}</p>{% endif %}</div>
     <div class="actions">
       <details class="popover"><summary class="btn">Edytuj</summary>
-        <form method="post" action="{% url 'jobs:edit' job.public_id %}" class="popover-panel">{% csrf_token %}
+        <div class="popover-panel"><form method="post" action="{% url 'jobs:edit' job.public_id %}">{% csrf_token %}
           <p><label for="id_name">Nazwa zlecenia</label><input type="text" name="name" id="id_name" value="{{ edit_form.name.value }}" required maxlength="120"></p>
           <p><label for="id_project">Projekt (folder)</label><input type="text" name="project" id="id_project" list="projects" value="{{ edit_form.project.value|default:'' }}" autocomplete="off"><datalist id="projects">{% for p in projects %}<option value="{{ p.name }}">{% endfor %}</datalist></p>
           <p><label for="id_note">Notatka</label><textarea name="note" id="id_note" rows="3" maxlength="2000">{{ edit_form.note.value|default:'' }}</textarea></p>
           <div class="actions"><button class="btn primary" type="submit">Zapisz</button></div>
         </form>
+        {% if not job.is_active %}
+        <form method="post" action="{% url 'jobs:delete' job.public_id %}" class="danger-zone" onsubmit="return confirm('Usunąć zlecenie {{ job.name|escapejs }} razem ze wszystkimi plikami wyników? Tego nie da się cofnąć.')">{% csrf_token %}
+          <p class="small muted">Usuwa zlecenie z listy i wszystkie jego pliki z serwera. Nie da się tego cofnąć.</p>
+          <button class="btn danger" type="submit">Usuń zlecenie i pliki</button>
+        </form>
+        {% endif %}
+        </div>
       </details>
       {% if archives and not job.is_active %}<a class="btn primary" href="#pliki" data-tab="pliki">Pobierz wyniki</a>{% elif job.is_active and files %}<a class="btn" href="#pliki" data-tab="pliki">Pobierz bieżący stan</a>{% endif %}
     </div>

@@ -384,3 +384,45 @@ class LiveFilesTests(TestCase):
         page = self.client.get(reverse("jobs:detail", args=[self.job.public_id]))
         self.assertContains(page, "Pobieranie w trakcie obliczeń")
         self.assertContains(page, "Pakuję")
+
+
+class PurgeTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.tmp = tempfile.mkdtemp()
+        self.override = override_settings(JOB_DATA_ROOT=self.tmp)
+        self.override.enable()
+        self.user = get_user_model().objects.create_user(email="d2@example.com", password="x", kind="company")
+        self.client.login(username="d2@example.com", password="x")
+
+    def tearDown(self):
+        self.override.disable()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _job(self, status):
+        j = Job(owner=self.user, name="m", filename="m.fds", chid="m", status=status)
+        j.save()
+        j.results_dir.mkdir(parents=True)
+        (j.results_dir / "m.out").write_text("x" * 1000)
+        return j
+
+    def test_user_delete_and_command(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        done, running = self._job(Job.Status.DONE), self._job(Job.Status.RUNNING)
+        self.client.post(reverse("jobs:delete", args=[running.public_id]))
+        self.assertTrue(Job.objects.filter(pk=running.pk).exists())
+        self.client.post(reverse("jobs:delete", args=[done.public_id]))
+        self.assertFalse(Job.objects.filter(pk=done.pk).exists())
+        self.assertFalse(done.dir.exists())
+        other = self._job(Job.Status.FAILED)
+        out = StringIO()
+        call_command("purge_jobs", "--all-finished", stdout=out)
+        self.assertIn("dry run", out.getvalue())
+        self.assertTrue(Job.objects.filter(pk=other.pk).exists())
+        call_command("purge_jobs", "--all-finished", "--yes", stdout=out)
+        self.assertFalse(Job.objects.filter(pk=other.pk).exists())
+        self.assertTrue(Job.objects.filter(pk=running.pk).exists())

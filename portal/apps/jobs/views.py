@@ -139,6 +139,24 @@ def job_snapshot(request, public_id):
 
 @login_required
 @require_POST
+def job_delete(request, public_id):
+    """Delete a finished job with all its files. Irreversible; the page asks first."""
+    from django.template.defaultfilters import filesizeformat
+
+    from .purge import purge_job
+
+    job = _own_job(request, public_id)
+    if job.is_active:
+        messages.error(request, "Tego zlecenia nie można usunąć, dopóki się liczy — najpierw je zatrzymaj.")
+        return redirect("jobs:detail", public_id=public_id)
+    name = job.name
+    freed = purge_job(job)
+    messages.success(request, f"Usunięto zlecenie „{name}” i jego pliki ({filesizeformat(freed)}).")
+    return redirect("jobs:list")
+
+
+@login_required
+@require_POST
 def job_edit(request, public_id):
     job = _own_job(request, public_id)
     form = JobEditForm(request.POST)
