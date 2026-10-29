@@ -113,7 +113,17 @@ jobs:
           APP_STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           APP_ING_API_KEY: ${{ secrets.ING_API_KEY }}
           APP_COMPANY_BANK_ACCOUNT: ${{ secrets.COMPANY_BANK_ACCOUNT }}
-        run: python3 deploy/push-update.py
+        run: |
+          set -o pipefail
+          python3 deploy/push-update.py 2>&1 | tee /tmp/deploy.log
+      - name: Report a failed deploy into the "Adresy środowisk" issue
+        if: failure() && steps.server.outputs.ip != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          num=$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=adresy" --jq '.[0].number')
+          { echo "### Deploy FAILED $(date -u +%Y-%m-%dT%H:%MZ) (${GITHUB_SHA::12})"; echo '```'; tail -c 6000 /tmp/deploy.log 2>/dev/null; echo '```'; } > body.md
+          gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$num/comments" -F body=@body.md >/dev/null
       - name: Record the address in the "Adresy środowisk" issue
         if: steps.server.outputs.ip != ''
         env:
