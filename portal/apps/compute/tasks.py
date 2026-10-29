@@ -163,3 +163,67 @@ def watchdog():
             except Exception as e:  # noqa: BLE001
                 log.exception("watchdog: delete failed for %s", s.id)
                 notify.admin_alert(f"zapomniana maszyna {s.name} — nie mogę usunąć", f"Serwer {s.id}: {e}. Usuń ręcznie w konsoli Hetzner.")
+
+
+KEEP_AFTER_EXPIRY = (".csv", ".fds")    # charts and the input stay in the job's history
+DISK_ALERT_FREE_GB = 10
+
+
+def expire_results(now=None):
+    """Delete result files of jobs whose 30 days have passed. CSV (the charts) and the input
+    file stay; archives and Smokeview output go. Returns (jobs touched, bytes freed)."""
+    import shutil
+
+    from apps.jobs.archives import archive_dir
+
+    now = now or timezone.now()
+    touched = freed = 0
+    for job in Job.objects.filter(expires_at__lt=now).exclude(status__in=Job.ACTIVE):
+        n = 0
+        if job.results_dir.exists():
+            for p in job.results_dir.iterdir():
+                if p.is_file() and not p.name.lower().endswith(KEEP_AFTER_EXPIRY):
+                    n += p.stat().st_size
+                    p.unlink()
+        ad = archive_dir(job)
+        if ad.exists():
+            n += sum(p.stat().st_size for p in ad.iterdir() if p.is_file())
+            shutil.rmtree(ad, ignore_errors=True)
+        if n:
+            touched += 1
+            freed += n
+            log_event(job, "expired", f"usunięto wyniki po {settings.PRICING['results_days']} dniach ({n} B)")
+    return touched, freed
+
+
+def check_disk():
+    """E-mail the admin (at most once a day) when the results disk runs low."""
+    import shutil
+    from pathlib import Path
+
+    root = Path(settings.JOB_DATA_ROOT)
+    root.mkdir(parents=True, exist_ok=True)
+    du = shutil.disk_usage(root)
+    free_gb = du.free / 1024**3
+    marker = root / ".disk_alert"
+    if free_gb >= DISK_ALERT_FREE_GB:
+        marker.unlink(missing_ok=True)
+        return free_gb
+    if marker.exists() and timezone.now().timestamp() - marker.stat().st_mtime < 86400:
+        return free_gb
+    marker.write_text("sent\n")
+    notify.admin_alert(
+        f"mało miejsca na dysku: {free_gb:.1f} GB wolnego",
+        f"Na serwerze portalu zostało {free_gb:.1f} GB z {du.total / 1024**3:.0f} GB. Nowe wyniki mogą się nie zmieścić.\n"
+        "Możliwości: usunąć stare zlecenia w panelu (Edytuj → Usuń zlecenie i pliki) albo dokupić wolumen dyskowy Hetznera.",
+    )
+    return free_gb
+
+
+@shared_task
+def housekeeping():
+    """Hourly: expire old results, then check free disk space."""
+    touched, freed = expire_results()
+    if touched:
+        log.info("housekeeping: expired results of %s jobs, freed %s bytes", touched, freed)
+    check_disk()

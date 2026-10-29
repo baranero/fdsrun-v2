@@ -57,3 +57,32 @@ class JobRetryTests(_TestCase):
         self.assertTrue(new.run_path.exists())
         launch.assert_called_once_with(new.id)
         self.assertIn(new.public_id, out.getvalue())
+
+
+class HousekeepingTests(_TestCase):
+    def test_expire_keeps_csv_and_input(self):
+        import shutil as sh
+        import tempfile as tf
+
+        from django.contrib.auth import get_user_model
+        from django.test import override_settings
+        from django.utils import timezone
+
+        from apps.compute.tasks import expire_results
+        from apps.jobs.models import Job
+
+        tmp = tf.mkdtemp()
+        with override_settings(JOB_DATA_ROOT=tmp):
+            u = get_user_model().objects.create_user(email="e@example.com", password="x")
+            j = Job(owner=u, name="m", filename="m.fds", chid="m", status=Job.Status.DONE, expires_at=timezone.now() - timezone.timedelta(days=1))
+            j.save()
+            j.results_dir.mkdir(parents=True)
+            for n in ("m_hrr.csv", "m_01.sf", "m.smv", "m.out"):
+                (j.results_dir / n).write_text("x" * 100)
+            (j.dir / "archives").mkdir()
+            (j.dir / "archives" / "m_all.zip").write_text("z" * 100)
+            touched, freed = expire_results()
+            self.assertEqual((touched, freed), (1, 400))
+            self.assertEqual(sorted(p.name for p in j.results_dir.iterdir()), ["m_hrr.csv"])
+            self.assertFalse((j.dir / "archives").exists())
+        sh.rmtree(tmp, ignore_errors=True)
