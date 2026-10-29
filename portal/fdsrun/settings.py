@@ -231,7 +231,7 @@ STUDENT_DOMAINS = [d.strip().lower() for d in env("STUDENT_DOMAINS", ".edu.pl,.e
 BILLING = {
     "balance_limit_pln": float(env("BALANCE_LIMIT_PLN", "500")),   # D-11: new accounts until the first paid invoice
     "payment_days": int(env("PAYMENT_DAYS", "14")),
-    "bank_account": env("COMPANY_BANK_ACCOUNT", ""),
+    "bank_account": env("COMPANY_BANK_ACCOUNT", "17 1050 1201 1000 0090 8385 3698"),  # ING, from the client 29.10.2026
     # ING issues real invoices (KSeF). Off = invoices stay drafts until the admin presses "Wystaw w ING".
     "ing_auto_issue": env("ING_AUTO_ISSUE", "0") == "1",
 }
