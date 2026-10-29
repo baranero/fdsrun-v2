@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.jobs",
     "apps.compute",
     "apps.panel",
+    "apps.billing",
     "apps.legal",
 ]
 
@@ -226,3 +227,11 @@ ING_API_KEY = env("ING_API_KEY", "")
 # Student accounts get the student rate only once verified: automatically for an e-mail in
 # an academic domain, otherwise by the admin in the panel.
 STUDENT_DOMAINS = [d.strip().lower() for d in env("STUDENT_DOMAINS", ".edu.pl,.edu,.ac.uk,.ac.at,.ac.be,.ac.jp,.ac.nz,.edu.au,.uni-*.de,.tu-*.de,.ethz.ch,.epfl.ch,.tudelft.nl,.kth.se,.dtu.dk,.aalto.fi,.ntnu.no,.cvut.cz,.vutbr.cz,.polimi.it,.upm.es,.upc.edu").split(",") if d.strip()]
+
+BILLING = {
+    "balance_limit_pln": float(env("BALANCE_LIMIT_PLN", "500")),   # D-11: new accounts until the first paid invoice
+    "payment_days": int(env("PAYMENT_DAYS", "14")),
+    "bank_account": env("COMPANY_BANK_ACCOUNT", ""),
+    # ING issues real invoices (KSeF). Off = invoices stay drafts until the admin presses "Wystaw w ING".
+    "ing_auto_issue": env("ING_AUTO_ISSUE", "0") == "1",
+}

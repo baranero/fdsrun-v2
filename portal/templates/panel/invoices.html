@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Faktury · panel{% endblock %}
+{% block content %}
+<section><h1>Faktury</h1>{% include "panel/_nav.html" %}</section>
+<section>
+  {% if not ing or not bank %}<div class="notice warn">{% if not ing %}Brak klucza ING. {% endif %}{% if not bank %}Brak numeru konta firmy (sekret COMPANY_BANK_ACCOUNT) — ING nie wystawi faktury bez konta.{% endif %}</div>{% endif %}
+  <p class="muted small">{% if auto %}Faktury trafiają do ING automatycznie.{% else %}Tryb bezpieczny: faktury powstają jako <b>projekty</b>. „Wystaw w ING” tworzy prawdziwą fakturę w ING Księgowość (i KSeF) oraz wysyła ją klientowi e-mailem z linkiem do płatności.{% endif %}</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Numer</th><th>Klient</th><th>Za</th><th class="num">Netto</th><th class="num">Brutto</th><th>Status</th><th>Termin</th><th></th></tr></thead>
+    <tbody>{% for i in invoices %}<tr>
+      <td class="mono">{{ i.label }}{% if i.ing_error %}<div class="small" style="color:var(--bad)">{{ i.ing_error|truncatechars:160 }}</div>{% endif %}</td>
+      <td>{{ i.buyer.name }}<div class="muted small">{{ i.user.email }}{% if i.buyer.nip %} · NIP {{ i.buyer.nip }}{% endif %} · {{ i.buyer.country }}</div></td>
+      <td class="small">{% if i.period %}{{ i.period }}, {% endif %}{{ i.lines|length }} zleceń</td>
+      <td class="num">{{ i.net_pln }}</td><td class="num">{{ i.gross_pln }}</td>
+      <td>{% if i.status == 'paid' %}<span class="pill ok">Zapłacona</span> <span class="muted small">{{ i.paid_via }}</span>{% elif i.overdue %}<span class="pill error">Po terminie</span>{% else %}<span class="pill {% if i.status == 'issued' %}warn{% endif %}">{{ i.get_status_display }}</span>{% endif %}</td>
+      <td class="nowrap">{{ i.due_date|date:"d.m.Y"|default:"—" }}{% if i.reminders %} <span class="muted small">{{ i.reminders }}× przyp.</span>{% endif %}</td>
+      <td class="nowrap"><form method="post" action="{% url 'billing:admin_action' i.pk %}" class="inline">{% csrf_token %}
+        {% if i.status == 'draft' %}<button class="btn sm primary" name="action" value="release" onclick="return confirm('Wystawić prawdziwą fakturę w ING Księgowość (trafi do KSeF) i wysłać ją klientowi?')">Wystaw w ING</button> <button class="btn sm" name="action" value="cancel">Anuluj projekt</button>{% endif %}
+        {% if i.status == 'issued' %}<button class="btn sm" name="action" value="paid">Oznacz jako zapłaconą</button> <button class="btn sm" name="action" value="remind">Przypomnij</button>{% endif %}
+        {% if i.status != 'draft' %}<a class="btn sm quiet" href="{% url 'billing:pdf' i.pk %}">PDF</a>{% endif %}
+      </form></td>
+    </tr>{% empty %}<tr><td colspan="8" class="muted">Brak faktur</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

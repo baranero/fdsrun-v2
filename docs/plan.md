@@ -44,11 +44,14 @@ Nowa sesja zaczyna od tego pliku: pierwsze niezrobione zadanie to następny krok
 - [ ] Bramka: 3 modele klienta policzone przez portal — akceptacja klienta
 
 ## Etap 3 — pieniądze
-- [ ] Dane do faktury, weryfikacja NIP (GUS) i VAT UE (VIES)
-- [ ] Stripe: weryfikacja karty, obciążenie po obliczeniach, BLIK, P24
-- [ ] Faktury PL/EN przez ING Księgowość (KSeF); plan B uzgodnić z klientem
-- [ ] Przypomnienia, blokada konta, wezwanie do zapłaty
-- [ ] Opłata minimalna i mnożniki wg decyzji 5–6
+- [x] Dane do faktury (firma/osoba, kraj, e-mail do faktur), sprawdzanie NIP w białej liście MF i VAT UE w VIES (29.10)
+- [x] Stripe Checkout na fakturę: dowolna metoda włączona w Stripe (D-11); webhook + potwierdzenie po powrocie; weryfikacja karty zbędna (D-11)
+- [x] Faktury przez API ING: po zleceniu albo zbiorczo 1. dnia miesiąca; na stagingu projekty + ręczne „Wystaw w ING” w panelu; PDF z ING w e-mailu
+- [ ] Numer konta firmy (sekret COMPANY_BANK_ACCOUNT) — od klienta
+- [ ] Pierwsza prawdziwa faktura w ING wystawiona razem z klientem; sprawdzić, czy trafia do KSeF
+- [ ] Faktury w EUR dla klientów zagranicznych; rejestracja VAT-UE przed sprzedażą firmom z UE
+- [x] Przypomnienia po 1 i 7 dniach od terminu; faktura po terminie blokuje nowe zlecenia (nie pobieranie); limit salda 500 zł do pierwszej zapłaconej faktury
+- [x] Mnożniki ×6 / ×3 (student po weryfikacji domeny); bez opłaty minimalnej; bieg testowy zakończony błędem — bezpłatny
 
 ## Etap 4 — panel admina
 - [x] Pulpit: zlecenia, przychód, koszty, marża, maszyny, trafność wycen, kalibracja (`/panel/`)

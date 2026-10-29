@@ -112,6 +112,7 @@ jobs:
           APP_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
           APP_STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           APP_ING_API_KEY: ${{ secrets.ING_API_KEY }}
+          APP_COMPANY_BANK_ACCOUNT: ${{ secrets.COMPANY_BANK_ACCOUNT }}
         run: python3 deploy/push-update.py
       - name: Record the address in the "Adresy środowisk" issue
         if: steps.server.outputs.ip != ''

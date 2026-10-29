@@ -126,10 +126,18 @@ def delete_machine(self, job_id):
     from apps.jobs.analyzer import multiplier_for
 
     job.cost_eur = machine.cost_eur
-    # client price = actual server cost × multiplier for the account type (decisions 5-6)
-    job.price_pln = round(machine.cost_eur * settings.PRICING["eur_pln"] * multiplier_for(job.owner), 2)
+    # client price = actual server cost × multiplier for the account type (decisions 5-6);
+    # a run that failed inside the 2-minute test window is free (pricing page, FAQ)
+    from apps.compute.views import TEST_WINDOW_S
+
+    free = job.status == Job.Status.FAILED and (job.wall_seconds or 0) <= TEST_WINDOW_S + 60
+    job.price_pln = 0 if free else round(machine.cost_eur * settings.PRICING["eur_pln"] * multiplier_for(job.owner), 2)
     job.save(update_fields=["cost_eur", "price_pln"])
-    log_event(job, "machine_deleted", f"{machine.hours:.2f} h, {machine.cost_eur:.3f} EUR")
+    log_event(job, "machine_deleted", f"{machine.hours:.2f} h, {machine.cost_eur:.3f} EUR" + (", bieg testowy bez opłaty" if free else ""))
+    if job.price_pln > 0:
+        from apps.billing.tasks import invoice_job
+
+        invoice_job.delay(job.id)
 
 
 @shared_task

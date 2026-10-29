@@ -1,0 +1,11 @@
+{% if res.ok %}<span class="pill ok">znaleziono</span> <span class="small">{{ res.name }}{% if res.address %}, {{ res.address }}{% endif %}{% if res.status %} · VAT: {{ res.status }}{% endif %}</span>
+<script>
+(function () {
+  var name = "{{ res.name|escapejs }}", addr = "{{ res.address|escapejs }}";
+  function fill(id, v) { var el = document.getElementById(id); if (el && !el.value && v) el.value = v; }
+  fill("id_name", name);
+  var m = addr.match(/^(.*),\s*(\d{2}-\d{3})\s+(.+)$/);
+  if (m) { fill("id_street", m[1]); fill("id_postcode", m[2]); fill("id_city", m[3]); }
+})();
+</script>
+{% else %}<span class="pill error">nie znaleziono</span> <span class="small muted">{{ res.error }}</span>{% endif %}

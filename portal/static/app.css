@@ -132,7 +132,7 @@ section > h2 { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .inline { display: inline; }
 form p { margin: 0 0 14px; }
 label { display: block; font-weight: 500; font-size: 14px; margin-bottom: 5px; }
-.help { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.help { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; }
 input[type=text], input[type=email], input[type=password], input[type=number], input[type=search], select, textarea { font: 15px var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r); padding: 9px 12px; width: 100%; max-width: 440px; }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
 input[type=file] { font: 14px var(--sans); }

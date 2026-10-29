@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Dane do faktury · fdsrun{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Dane do faktury</h1><p class="sub">Potrzebne przed pierwszym uruchomieniem obliczeń. Płacisz dopiero po wynikach.</p></div></div>
+{% if prof and not prof.can_be_invoiced %}<div class="notice warn">{{ prof.tax_treatment.2 }}</div>{% endif %}
+<form method="post" action="{% url 'billing:profile' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="card">{% csrf_token %}
+  {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  <fieldset class="kinds"><legend>Kto płaci</legend>
+    <label class="kind"><input type="radio" name="kind" value="company" {% if form.kind.value == 'company' %}checked{% endif %} onchange="document.getElementById('billing-form').dataset.kind='company'"><span><strong>Firma</strong><br><span class="ticks">faktura VAT na NIP, przelew w 14 dni, możliwa faktura zbiorcza</span></span></label>
+    <label class="kind"><input type="radio" name="kind" value="person" {% if form.kind.value == 'person' %}checked{% endif %} onchange="document.getElementById('billing-form').dataset.kind='person'"><span><strong>Osoba prywatna</strong><br><span class="ticks">faktura na imię i nazwisko po każdym zleceniu</span></span></label>
+  </fieldset>
+  <div id="billing-form" data-kind="{{ form.kind.value|default:'company' }}" class="bf">
+    <p><label for="id_country">Kraj</label>{{ form.country }}</p>
+    <p class="co"><label for="id_nip">NIP</label>
+      <span class="field-row"><input type="text" name="nip" id="id_nip" value="{{ form.nip.value|default:'' }}" style="max-width:220px" autocomplete="off">
+      <button class="btn" type="button" hx-get="{% url 'billing:nip_lookup' %}" hx-include="#id_nip" hx-target="#lookup" hx-swap="innerHTML">Sprawdź w rejestrze MF</button></span>
+      {{ form.nip.errors }}<span id="lookup">{% if prof.nip_verified_at %}<span class="pill ok">zweryfikowano {{ prof.nip_verified_at|date:"d.m.Y" }}</span> <span class="small muted">{{ prof.nip_verified_name }}</span>{% endif %}</span></p>
+    <p class="co"><label for="id_vat_eu">Numer VAT UE <span class="muted">— jeśli masz</span></label><input type="text" name="vat_eu" id="id_vat_eu" value="{{ form.vat_eu.value|default:'' }}" style="max-width:220px" placeholder="np. PL6182094888"></p>
+    <p><label for="id_name"><span class="co">Nazwa firmy</span><span class="pe">Imię i nazwisko</span></label><input type="text" name="name" id="id_name" value="{{ form.name.value|default:'' }}" required>{{ form.name.errors }}</p>
+    <p><label for="id_street">Ulica i numer</label><input type="text" name="street" id="id_street" value="{{ form.street.value|default:'' }}" required>{{ form.street.errors }}</p>
+    <div class="field-row"><p><label for="id_postcode">Kod pocztowy</label><input type="text" name="postcode" id="id_postcode" value="{{ form.postcode.value|default:'' }}" required style="max-width:140px"></p>
+    <p style="flex:1"><label for="id_city">Miasto</label><input type="text" name="city" id="id_city" value="{{ form.city.value|default:'' }}" required></p></div>
+    <p><label for="id_invoice_email">E-mail do faktur</label><input type="email" name="invoice_email" id="id_invoice_email" value="{{ form.invoice_email.value|default:'' }}" required><span class="help">Może być inny niż adres logowania, np. księgowość.</span>{{ form.invoice_email.errors }}</p>
+    <fieldset class="kinds co"><legend>Sposób rozliczenia</legend>
+      <label class="kind"><input type="radio" name="mode" value="per_job" {% if form.mode.value != 'monthly' %}checked{% endif %}><span><strong>Faktura po każdym zleceniu</strong><br><span class="ticks">przychodzi e-mailem zaraz po obliczeniach</span></span></label>
+      <label class="kind"><input type="radio" name="mode" value="monthly" {% if form.mode.value == 'monthly' %}checked{% endif %}><span><strong>Faktura zbiorcza za miesiąc</strong><br><span class="ticks">wszystkie zlecenia z miesiąca na jednej fakturze, wystawianej 1. dnia następnego miesiąca</span></span></label>
+    </fieldset>
+  </div>
+  <div class="actions"><button class="btn primary lg" type="submit">Zapisz dane</button>{% if next %}<span class="muted small">Po zapisaniu wrócisz do zlecenia.</span>{% endif %}</div>
+</form>
+<section>
+  <h2>Płatności</h2>
+  <dl class="kv">
+    <dt>Jak płacisz</dt><dd>Po obliczeniach dostajesz fakturę e-mailem. Płacisz online (karta, BLIK, Przelewy24 i inne) albo przelewem, w {{ billing_days|default:14 }} dni.</dd>
+    <dt>Nieopłacone</dt><dd class="mono">{{ balance|floatformat:2 }} zł netto{% if limit %} z limitu {{ limit|floatformat:0 }} zł dla nowego konta (znika po pierwszej opłaconej fakturze){% endif %}</dd>
+  </dl>
+</section>
+<style>
+.bf[data-kind="person"] .co { display: none; } .bf[data-kind="company"] .pe { display: none; }
+.card select { font: 15px var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r); padding: 9px 12px; max-width: 260px; }
+</style>
+{% endblock %}

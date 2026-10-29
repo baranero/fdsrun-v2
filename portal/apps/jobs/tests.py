@@ -41,6 +41,10 @@ class JobFlowTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("inz@example.com", "haslo-bardzo-tajne", email_confirmed=True)
         self.client.login(username="inz@example.com", password="haslo-bardzo-tajne")
+        from apps.billing.models import BillingProfile
+
+        BillingProfile.objects.create(user=self.user, name="Biuro", nip="6182094888", street="Grzybowa 7A", postcode="05-825",
+                                      city="Grodzisk", country="PL", invoice_email="inz@example.com")
 
     def upload(self, text=MINIMAL_FDS, name="model.fds"):
         resp = self.client.post(reverse("jobs:new"), {"file": SimpleUploadedFile(name, text.encode())})

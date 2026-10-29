@@ -17,6 +17,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import subprocess
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -24,7 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 STACK_DIR = "/opt/fdsrun"
 ENV_FILE = os.path.join(STACK_DIR, ".env")
 ALLOWED_FILES = {"compose.yml", "Caddyfile", "deployer.py"}
-ALLOWED_ENV = {"IMAGE", "PORTAL_DOMAINS", "PORTAL_URL", "COMPUTE_IMAGE", "FDSRUN_ENV", "HCLOUD_LOCATION", "EMAIL_HOST", "EMAIL_PORT", "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "ADMIN_EMAIL", "COMPANY_NAME", "COMPANY_ADDRESS", "COMPANY_NIP", "COMPANY_EMAIL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "MS_CLIENT_ID", "MS_CLIENT_SECRET", "STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_WEBHOOK_SECRET", "ING_API_KEY"}
+ALLOWED_ENV = {"IMAGE", "PORTAL_DOMAINS", "PORTAL_URL", "COMPUTE_IMAGE", "FDSRUN_ENV", "HCLOUD_LOCATION", "EMAIL_HOST", "EMAIL_PORT", "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "ADMIN_EMAIL", "COMPANY_NAME", "COMPANY_ADDRESS", "COMPANY_NIP", "COMPANY_EMAIL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "MS_CLIENT_ID", "MS_CLIENT_SECRET", "STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_WEBHOOK_SECRET", "ING_API_KEY", "COMPANY_BANK_ACCOUNT"}
 SECRET_ENV = {k for k in ALLOWED_ENV if k.endswith(("PASSWORD", "SECRET", "_KEY"))}
 MAX_SKEW_S = 300
 ALLOWED_MANAGE = {"smoke_test", "job_status", "job_log", "job_rate", "job_retry", "job_stop", "jobs_list", "promote_admin", "purge_jobs", "keys_check", "build_archives", "send_test_mail", "share_link", "migrate", "showmigrations"}
@@ -130,8 +131,15 @@ class Handler(BaseHTTPRequestHandler):
                 log.append(f"wrote {name}")
                 restart_self = restart_self or name == "deployer.py"
         env = read_env()
+        # the request is signed, so a new deployer.py in it may widen the allow-list right away
+        # (otherwise new secrets would only arrive on the deploy after next)
+        allowed = set(ALLOWED_ENV)
+        new_code = (data.get("files") or {}).get("deployer.py", "")
+        m = re.search(r"^ALLOWED_ENV = \{([^}]*)\}", new_code, re.M)
+        if m:
+            allowed |= set(re.findall(r'"([A-Z0-9_]+)"', m.group(1)))
         for k, v in (data.get("env") or {}).items():
-            if k in ALLOWED_ENV and isinstance(v, str):
+            if k in allowed and isinstance(v, str):
                 env[k] = v
         if data.get("image"):
             env["IMAGE"] = data["image"]

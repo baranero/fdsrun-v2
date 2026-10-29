@@ -22,6 +22,7 @@
         <a href="{% url 'jobs:dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' and request.resolver_match.app_name == 'jobs' %}aria-current="page"{% endif %}>Pulpit</a>
         <a href="{% url 'jobs:list' %}" {% if request.resolver_match.url_name in 'list detail' and request.resolver_match.app_name == 'jobs' %}aria-current="page"{% endif %}>Zlecenia</a>
         <a class="new" href="{% url 'jobs:new' %}" {% if request.resolver_match.url_name == 'new' %}aria-current="page"{% endif %}>Nowe zlecenie</a>
+        <a href="{% url 'billing:invoices' %}" {% if request.resolver_match.url_name == 'invoices' %}aria-current="page"{% endif %}>Faktury</a>
         <a href="{% url 'legal:pricing' %}" {% if request.resolver_match.url_name == 'pricing' %}aria-current="page"{% endif %}>Cennik i FAQ</a>
         {% if user.is_staff %}<a href="{% url 'panel:dashboard' %}" {% if request.resolver_match.app_name == 'panel' %}aria-current="page"{% endif %}>Admin</a>{% endif %}
       {% else %}
@@ -38,6 +39,8 @@
         <summary><span class="avatar">{{ user.email|first }}</span><span class="menu-email">{{ user.email }}</span></summary>
         <div class="menu-panel">
           <div class="who">{{ user.email }}</div>
+          <a href="{% url 'billing:profile' %}">Dane do faktury</a>
+          <a href="{% url 'billing:invoices' %}">Faktury</a>
           <a href="{% url 'accounts:two_factor_setup' %}">Bezpieczeństwo i 2FA</a>
           <a href="{% url 'socialaccount_connections' %}">Połączone logowania</a>
           <a href="{% url 'accounts:password_reset' %}">Zmień hasło</a>

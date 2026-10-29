@@ -41,8 +41,9 @@ class User(AbstractUser):
     totp_secret = models.CharField(max_length=64, blank=True)  # set = 2FA enabled
     totp_backup = models.CharField(max_length=200, blank=True, help_text="hashed one-time backup codes, comma separated")
     student_verified = models.BooleanField(default=False, help_text="Status studenta potwierdzony (domena uczelni albo administrator)")
-    trusted = models.BooleanField(default=False, help_text="Zaufana firma: faktura zbiorcza, wyższy limit na zlecenie")
-    per_job_limit_pln = models.DecimalField(max_digits=9, decimal_places=2, default=300)
+    trusted = models.BooleanField(default=False, help_text="Zaufany klient: bez limitu nieopłaconego salda")
+    per_job_limit_pln = models.DecimalField("Limit nieopłaconego salda [zł]", max_digits=9, decimal_places=2, default=500,
+                                            help_text="Obowiązuje do pierwszej zapłaconej faktury (D-11)")
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []

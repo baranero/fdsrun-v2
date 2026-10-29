@@ -2,6 +2,7 @@
   <a href="{% url 'panel:dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>Pulpit</a>
   <a href="{% url 'panel:jobs' %}" {% if request.resolver_match.url_name == 'jobs' %}aria-current="page"{% endif %}>Zlecenia</a>
   <a href="{% url 'panel:users' %}" {% if request.resolver_match.url_name == 'users' %}aria-current="page"{% endif %}>Użytkownicy</a>
+  <a href="{% url 'billing:admin_list' %}" {% if request.resolver_match.url_name == 'admin_list' %}aria-current="page"{% endif %}>Faktury</a>
   <a href="{% url 'panel:machines' %}" {% if request.resolver_match.url_name == 'machines' %}aria-current="page"{% endif %}>Maszyny</a>
   <a href="{% url 'panel:access' %}" {% if request.resolver_match.url_name == 'access' %}aria-current="page"{% endif %}>Dziennik dostępu</a>
   <a href="{% url 'admin:index' %}">Baza danych</a>

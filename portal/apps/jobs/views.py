@@ -329,6 +329,15 @@ def job_start(request, public_id):
     if opt is None:
         messages.error(request, "Wybierz jeden z wariantów z tabeli.")
         return redirect("jobs:detail", public_id=public_id)
+    from apps.billing.services import can_start
+
+    ok, why = can_start(request.user, opt["pricePln"])
+    if not ok:
+        if why == "profile":
+            messages.info(request, "Zanim uruchomisz pierwsze obliczenia, podaj dane do faktury. Płatność i tak dopiero po wynikach.")
+            return redirect(reverse("billing:profile") + "?next=" + reverse("jobs:detail", args=[public_id]))
+        messages.error(request, why)
+        return redirect("jobs:detail", public_id=public_id)
     job.procs, job.server_type = opt["procs"], opt["server"]
     job.est_hours, job.est_cost_eur, job.est_price_pln = opt["hours"], opt["costEur"], opt["pricePln"]
     try:

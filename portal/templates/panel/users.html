@@ -3,9 +3,9 @@
 {% block content %}
 <section><h1>Użytkownicy</h1>{% include "panel/_nav.html" %}</section>
 <section>
-  <p class="muted small">„Student ✓” = stawka studencka (−50%); ustawia się sama dla e-maili z domen uczelni, resztę zatwierdzasz tutaj po sprawdzeniu legitymacji. „Zaufany” = faktura zbiorcza miesięczna bez karty. Limit = maksymalna cena jednego zlecenia.</p>
+  <p class="muted small">„Student ✓” = stawka studencka (−50%); ustawia się sama dla e-maili z domen uczelni, resztę zatwierdzasz tutaj po sprawdzeniu legitymacji. „Zaufany” = bez limitu nieopłaconego salda. „Limit salda” = ile nowe konto może mieć nieopłaconych zleceń do pierwszej zapłaconej faktury (domyślnie 500 zł).</p>
   <div class="table-scroll"><table>
-    <tr><th>E-mail</th><th>Rodzaj</th><th>Student ✓</th><th>Zaufany</th><th>Aktywny</th><th class="num">Limit [zł]</th><th class="num">Zleceń</th><th class="num">Przychód</th><th>Ostatnie</th><th>Dołączył</th><th></th></tr>
+    <tr><th>E-mail</th><th>Rodzaj</th><th>Student ✓</th><th>Zaufany</th><th>Aktywny</th><th class="num">Limit salda [zł]</th><th class="num">Zleceń</th><th class="num">Przychód</th><th>Ostatnie</th><th>Dołączył</th><th></th></tr>
     {% for u in users %}<tr>
       <form method="post" action="{% url 'panel:user_update' u.id %}">{% csrf_token %}
       <td>{{ u.email }}{% if u.is_staff %} <span class="pill">admin</span>{% endif %}{% if not u.email_confirmed %} <span class="pill warn">e-mail niepotw.</span>{% endif %}</td>

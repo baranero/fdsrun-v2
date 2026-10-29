@@ -4,6 +4,9 @@ Decyzje podjęte w trakcie budowy, od najnowszej. Decyzje klienta z planu wdroż
 
 ## 2026-10-26 — Etap 0
 
+**D-11. Rozliczenia (decyzje klienta 29.10.2026).**
+Wyniki są do pobrania od razu po obliczeniach, bez czekania na zapłatę. Faktura przychodzi e-mailem; klient płaci dowolną metodą udostępnioną przez Stripe (karta, BLIK, Przelewy24, portfele) albo zwykłym przelewem na konto firmy. Firmy wybierają fakturę po każdym zleceniu albo zbiorczą za miesiąc (wystawianą 1. dnia następnego miesiąca); termin płatności 14 dni. Nowe konto ma limit nieopłaconego salda 500 zł do pierwszej zapłaconej faktury; zaufane konta bez limitu. Faktura po terminie blokuje uruchamianie nowych zleceń, nie pobieranie. Weryfikacja karty przed pierwszym zleceniem nie jest obowiązkowa. Stawka studencka po weryfikacji domeny uczelni albo przez administratora. Na stagingu faktury powstają jako projekty; do ING (KSeF) trafiają dopiero po ręcznym „Wystaw w ING” w panelu.
+
 **D-10. Pliki wyników serwuje Caddy, nie Django.**
 Ścieżka `/pobierz/<id>/<plik>` trafia do Caddy, który pyta Django (`forward_auth` → `/api/download/auth`), czy wolno, i sam strumieniuje plik z wolumenu `jobdata` z obsługą HTTP Range. Dzięki temu 10-GB archiwum nie blokuje procesu gunicorna, a pobieranie da się wznowić (`curl -C -`, menedżery pobierania). Linki tymczasowe: HMAC z datą ważności (7 dni), bez logowania. Archiwa ZIP bez kompresji budowane po zakończeniu zlecenia (task `build_archives_task`).
 

@@ -19,6 +19,7 @@ urlpatterns = [
     path("api/compute/", include("apps.compute.urls")),
     path("api/download/auth", downloads.download_auth, name="download_auth"),
     path("pobierz/<str:public_id>/<str:name>", downloads.download, name="download"),
+    path("", include("apps.billing.urls")),
     path("panel/", include("apps.panel.urls")),
     path("", include("apps.legal.urls")),
     path("admin/", admin.site.urls),

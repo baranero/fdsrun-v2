@@ -84,7 +84,8 @@ class Job(models.Model):
     agent_token = models.CharField(max_length=64, default=new_token, editable=False)
     stop_requested = models.BooleanField(default=False)
     sync_requested_at = models.DateTimeField(null=True, blank=True)   # user asked for current files
-    hidden_at = models.DateTimeField(null=True, blank=True)           # deleted by the client: files gone, row kept for billing
+    hidden_at = models.DateTimeField(null=True, blank=True)
+    invoice = models.ForeignKey("billing.Invoice", null=True, blank=True, on_delete=models.SET_NULL, related_name="jobs")           # deleted by the client: files gone, row kept for billing
     files_synced_at = models.DateTimeField(null=True, blank=True)     # last file received from the machine
     # cost cap: when the projected time exceeds the estimate by 30%, the run pauses until the user confirms
     budget_confirmed = models.BooleanField(default=False)
