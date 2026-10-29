@@ -36,8 +36,12 @@ class Command(BaseCommand):
         if opts["yes"]:
             freed = 0
             for j in jobs:
-                if not j.is_active:
+                if j.is_active:
+                    continue
+                try:
                     freed += purge_job(j)
+                except ValueError as e:
+                    self.stdout.write(f"skipped: {e}")
             self.stdout.write(f"deleted, freed {filesizeformat(freed)}")
         du = shutil.disk_usage(settings.JOB_DATA_ROOT)
         self.stdout.write(f"disk: {filesizeformat(du.used)} used, {filesizeformat(du.free)} free of {filesizeformat(du.total)}")

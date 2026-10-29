@@ -416,7 +416,8 @@ class PurgeTests(TestCase):
         self.client.post(reverse("jobs:delete", args=[running.public_id]))
         self.assertTrue(Job.objects.filter(pk=running.pk).exists())
         self.client.post(reverse("jobs:delete", args=[done.public_id]))
-        self.assertFalse(Job.objects.filter(pk=done.pk).exists())
+        done.refresh_from_db()
+        self.assertIsNotNone(done.hidden_at)  # client delete: files gone, row kept for billing
         self.assertFalse(done.dir.exists())
         other = self._job(Job.Status.FAILED)
         out = StringIO()
@@ -426,3 +427,33 @@ class PurgeTests(TestCase):
         call_command("purge_jobs", "--all-finished", "--yes", stdout=out)
         self.assertFalse(Job.objects.filter(pk=other.pk).exists())
         self.assertTrue(Job.objects.filter(pk=running.pk).exists())
+
+
+class HideTests(TestCase):
+    def test_client_delete_hides_and_keeps_row(self):
+        from django.contrib.auth import get_user_model
+
+        from apps.compute.models import Machine
+
+        tmp = tempfile.mkdtemp()
+        with override_settings(JOB_DATA_ROOT=tmp):
+            u = get_user_model().objects.create_user(email="h@example.com", password="x", kind="company")
+            self.client.login(username="h@example.com", password="x")
+            j = Job(owner=u, name="m", filename="m.fds", chid="m", status=Job.Status.DONE, price_pln=120)
+            j.save()
+            j.results_dir.mkdir(parents=True)
+            (j.results_dir / "m.out").write_text("x")
+            Machine.objects.create(job=j, name="x", server_type="cpx42", location="nbg1", status=Machine.Status.DELETED)
+            self.client.post(reverse("jobs:delete", args=[j.public_id]))
+            j.refresh_from_db()
+            self.assertIsNotNone(j.hidden_at)
+            self.assertFalse(j.dir.exists())
+            self.assertEqual(self.client.get(reverse("jobs:detail", args=[j.public_id])).status_code, 404)
+            self.assertNotContains(self.client.get(reverse("jobs:list")), j.public_id)
+            from apps.jobs.purge import purge_job
+
+            purge_job(j)
+            m = Machine.objects.get(name="x")
+            self.assertIsNone(m.job)
+            self.assertIn("h@example.com", m.job_ref)
+        shutil.rmtree(tmp, ignore_errors=True)

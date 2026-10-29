@@ -105,10 +105,14 @@ def machine_delete(request, machine_id):
     from apps.compute import tasks
 
     m = get_object_or_404(Machine, id=machine_id)
+    if m.job is None:
+        messages.info(request, f"Maszyna {m.name} jest już usunięta.")
+        return redirect("panel:machines")
     if m.job.is_active:
         tasks.finish_job.delay(m.job_id, Job.Status.CANCELLED, "Przerwane przez administratora")
     else:
         tasks.delete_machine.delay(m.job_id)
-    log_event(m.job, "admin_machine_delete", m.name, actor=request.user.email)
+    if m.job:
+        log_event(m.job, "admin_machine_delete", m.name, actor=request.user.email)
     messages.info(request, f"Usuwam maszynę {m.name}")
     return redirect("panel:machines")

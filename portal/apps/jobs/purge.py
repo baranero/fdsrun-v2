@@ -11,13 +11,32 @@ def dir_size(path) -> int:
 
 
 def purge_job(job) -> int:
-    """Delete one finished job (files + row). Returns bytes freed. Refuses active jobs:
-    their compute machine still writes into the job and must be stopped first."""
+    """Admin: delete one finished job for good (files + row; its machine's cost record stays).
+    Returns bytes freed. Refuses active jobs: their machine still writes into the job."""
+    if job.is_active:
+        raise ValueError(f"{job.public_id} is still active ({job.status})")
+    from apps.compute.models import Machine
+
+    if Machine.objects.filter(job=job).exclude(status=Machine.Status.DELETED).exists():
+        raise ValueError(f"{job.public_id}: its machine is not deleted yet")
+    Machine.objects.filter(job=job).update(job_ref=f"{job.public_id} {job.owner.email}"[:80])
+    size = dir_size(job.dir)
+    shutil.rmtree(job.dir, ignore_errors=True)
+    job.delete()
+    return size
+
+
+def hide_job(job) -> int:
+    """Client: delete all files of a finished job and hide it from their lists. The row stays
+    (price, times, owner) because it is the basis of the invoice."""
+    from django.utils import timezone
+
     if job.is_active:
         raise ValueError(f"{job.public_id} is still active ({job.status})")
     size = dir_size(job.dir)
     shutil.rmtree(job.dir, ignore_errors=True)
-    job.delete()
+    job.hidden_at = timezone.now()
+    job.save(update_fields=["hidden_at"])
     return size
 
 

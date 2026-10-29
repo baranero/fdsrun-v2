@@ -21,7 +21,9 @@ class Machine(models.Model):
         DELETED = "deleted", "Usunięta"
         LOST = "lost", "Nie udało się usunąć"
 
-    job = models.OneToOneField(Job, on_delete=models.PROTECT, related_name="machine")
+    # Machines outlive their job record (admin purge): the cost history stays for the panel.
+    job = models.OneToOneField(Job, null=True, blank=True, on_delete=models.SET_NULL, related_name="machine")
+    job_ref = models.CharField(max_length=80, blank=True, help_text="public id and owner, kept after the job is purged")
     hcloud_id = models.BigIntegerField(null=True, blank=True, unique=True)
     name = models.CharField(max_length=64)
     server_type = models.CharField(max_length=12)

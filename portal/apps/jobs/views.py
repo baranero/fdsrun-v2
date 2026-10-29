@@ -19,6 +19,8 @@ def _own_job(request, public_id):
     job = get_object_or_404(Job, public_id=public_id)
     if job.owner_id != request.user.id and not request.user.is_staff:
         raise Http404
+    if job.hidden_at and not request.user.is_staff:
+        raise Http404
     if request.user.is_staff and job.owner_id != request.user.id:
         log_event(job, "admin_view", request.path, actor=request.user.email)
     return job
@@ -26,7 +28,7 @@ def _own_job(request, public_id):
 
 @login_required
 def dashboard(request):
-    mine = Job.objects.filter(owner=request.user)
+    mine = Job.objects.filter(owner=request.user, hidden_at__isnull=True)
     active = [j for j in mine.filter(status__in=Job.ACTIVE)]
     recent = mine.exclude(status__in=Job.ACTIVE).exclude(status=Job.Status.DRAFT)[:8]
     drafts = mine.filter(status=Job.Status.DRAFT)[:5]
@@ -63,7 +65,7 @@ LIST_FILTERS = {
 
 @login_required
 def job_list(request):
-    jobs = Job.objects.filter(owner=request.user)
+    jobs = Job.objects.filter(owner=request.user, hidden_at__isnull=True)
     flt = request.GET.get("f", "")
     if flt not in LIST_FILTERS:
         flt = ""
@@ -75,10 +77,10 @@ def job_list(request):
 
         jobs = jobs.filter(Q(name__icontains=q) | Q(public_id__icontains=q) | Q(chid__icontains=q) | Q(filename__icontains=q))
     from django.core.paginator import Paginator
-    from django.db.models import Count, Sum
+    from django.db.models import Count, Q, Sum
 
-    mine = Job.objects.filter(owner=request.user)
-    projects = Project.objects.filter(owner=request.user).annotate(n=Count("jobs"))
+    mine = Job.objects.filter(owner=request.user, hidden_at__isnull=True)
+    projects = Project.objects.filter(owner=request.user).annotate(n=Count("jobs", filter=Q(jobs__hidden_at__isnull=True)))
     proj = request.GET.get("p", "")
     if proj == "none":
         jobs = jobs.filter(project__isnull=True)
@@ -143,14 +145,15 @@ def job_delete(request, public_id):
     """Delete a finished job with all its files. Irreversible; the page asks first."""
     from django.template.defaultfilters import filesizeformat
 
-    from .purge import purge_job
+    from .purge import hide_job
 
     job = _own_job(request, public_id)
     if job.is_active:
         messages.error(request, "Tego zlecenia nie można usunąć, dopóki się liczy — najpierw je zatrzymaj.")
         return redirect("jobs:detail", public_id=public_id)
     name = job.name
-    freed = purge_job(job)
+    freed = hide_job(job)
+    log_event(job, "hidden", f"{freed} B", actor=request.user.email)
     messages.success(request, f"Usunięto zlecenie „{name}” i jego pliki ({filesizeformat(freed)}).")
     return redirect("jobs:list")
 
