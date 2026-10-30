@@ -22,7 +22,10 @@ jobs:
       - run: |
           ip=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/servers?name=fdsrun-staging" | python3 -c "import json,sys; print(json.load(sys.stdin)['servers'][0]['public_net']['ipv4']['ip'])")
           cmd='${{ github.event.inputs.command }}'
-          if [ "$cmd" = "status" ]; then
+          if [ "$cmd" = "free-space" ]; then
+            python3 deploy/deployer-call.py "$ip" /_deploy/free '{}' > out.json || true
+            python3 -c "import json; d=json.load(open('out.json')); print(d['output'])" > out.txt
+          elif [ "$cmd" = "status" ]; then
             python3 deploy/deployer-call.py "$ip" /_deploy/status '{}' > out.json || true
             python3 -c "import json; d=json.load(open('out.json')); print(d['ps']); print('--- disk'); print(d.get('disk','')); print('--- db'); print(d.get('db','')[-3000:]); print('--- web/worker'); print(d['logs'][-4000:])" > out.txt
           else

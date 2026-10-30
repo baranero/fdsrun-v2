@@ -104,6 +104,22 @@ class Handler(BaseHTTPRequestHandler):
             _, logs = compose("logs", "--tail", "25", "web", "worker", timeout=60)
             self._reply(200, {"ps": ps, "disk": df + "\n" + vols, "db": dblog, "logs": logs, "env": {k: ("***" if k in SECRET_ENV else v) for k, v in read_env().items() if k in ALLOWED_ENV}})
             return
+        if self.path == "/_deploy/free":
+            # emergency disk relief on the host: result archives can always be rebuilt from the
+            # result files (manage.py build_archives); unused images are re-pulled on demand
+            if self._verify() is None:
+                return
+            out = []
+            _, before = sh(["df", "-h", "/"], timeout=30)
+            out.append(before)
+            _, a = sh(["sh", "-c", "du -sch /var/lib/docker/volumes/fdsrun_jobdata/_data/*/archives 2>/dev/null | tail -n1; rm -rf /var/lib/docker/volumes/fdsrun_jobdata/_data/*/archives"], timeout=600)
+            out.append("archives removed: " + a)
+            _, b = sh(["docker", "image", "prune", "-af"], timeout=600)
+            out.append(b[-800:])
+            _, after = sh(["df", "-h", "/"], timeout=30)
+            out.append(after)
+            self._reply(200, {"output": "\n".join(out)})
+            return
         if self.path == "/_deploy/manage":
             data = self._verify()
             if data is None:
