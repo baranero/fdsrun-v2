@@ -130,7 +130,8 @@ def delete_machine(self, job_id):
     # a run that failed inside the 2-minute test window is free (pricing page, FAQ)
     from apps.compute.views import TEST_WINDOW_S
 
-    free = job.status == Job.Status.FAILED and (job.wall_seconds or 0) <= TEST_WINDOW_S + 60
+    # STALLED = the machine or the portal failed, never the client's model: free (30.10)
+    free = job.status == Job.Status.STALLED or (job.status == Job.Status.FAILED and (job.wall_seconds or 0) <= TEST_WINDOW_S + 60)
     job.price_pln = 0 if free else round(machine.cost_eur * settings.PRICING["eur_pln"] * multiplier_for(job.owner), 2)
     job.save(update_fields=["cost_eur", "price_pln"])
     log_event(job, "machine_deleted", f"{machine.hours:.2f} h, {machine.cost_eur:.3f} EUR" + (", bieg testowy bez opłaty" if free else ""))
@@ -148,8 +149,22 @@ def watchdog():
     for job in Job.objects.filter(status__in=[Job.Status.PROVISIONING, Job.Status.TESTING, Job.Status.RUNNING, Job.Status.FINISHING]):
         last = job.last_heartbeat or job.started_at or job.created_at
         limit = timeout * (3 if job.status == Job.Status.PROVISIONING else 1)
-        if now - last > limit:
-            finish_job.delay(job.id, Job.Status.STALLED, "Maszyna przestała odpowiadać; wyniki do ostatniego zapisu są dostępne")
+        if now - last <= limit:
+            continue
+        # Silence can be the portal's fault (full disk, database down, deploy) while the
+        # machine keeps computing. Ask Hetzner first; only a machine that is really gone, or
+        # silent for hours, ends the job (29.10: a live run was killed during a portal outage).
+        m = Machine.objects.filter(job=job).exclude(status=Machine.Status.DELETED).first()
+        alive = hcloud_client.server_running(m.hcloud_id) if m and m.hcloud_id else False
+        if alive is not False and now - last < timezone.timedelta(seconds=settings.COMPUTE_SILENT_ALIVE_S):
+            if "brak kontaktu" not in (job.status_message or ""):
+                Job.objects.filter(id=job.id).update(status_message="Chwilowy brak kontaktu z maszyną — serwer działa, obliczenia trwają.")
+                log_event(job, "silent", f"no heartbeat for {(now - last).seconds // 60} min, server {'running' if alive else 'unknown'}")
+                notify.admin_alert(f"zlecenie {job.public_id}: brak sygnału, maszyna działa",
+                                   f"{job.owner.email}, {job.name}: brak sygnału od {(now - last).seconds // 60} min, ale Hetzner pokazuje serwer jako działający. "
+                                   "Sprawdź portal (dysk, baza). Zlecenie nie zostało przerwane.")
+            continue
+        finish_job.delay(job.id, Job.Status.STALLED, "Maszyna przestała odpowiadać; wyniki do ostatniego zapisu są dostępne")
     # retry machines that failed to delete
     for m in Machine.objects.filter(status=Machine.Status.LOST):
         delete_machine.delay(m.job_id)
@@ -232,6 +247,9 @@ def check_disk():
 def housekeeping():
     """Hourly: expire old results, then check free disk space."""
     touched, freed = expire_results()
+    from apps.jobs.archives import expire_large_archives
+
+    expire_large_archives()
     if touched:
         log.info("housekeeping: expired results of %s jobs, freed %s bytes", touched, freed)
     check_disk()

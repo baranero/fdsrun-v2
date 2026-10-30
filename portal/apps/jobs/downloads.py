@@ -104,6 +104,6 @@ def share_links(request, public_id):
     job = get_object_or_404(Job, public_id=public_id)
     if job.owner_id != request.user.id and not request.user.is_staff:
         raise Http404
-    items = [dict(a, url=archives.download_url(job, a["name"], request, signed=True)) for a in archives.archive_files(job)]
+    items = [dict(a, url=archives.download_url(job, a["name"], request, signed=True)) for a in archives.ready_archives(job)]
     log_event(job, "share_links", ", ".join(a["name"] for a in items), actor=request.user.email)
     return render(request, "jobs/_share.html", {"job": job, "items": items, "days": archives.LINK_MAX_AGE // 86400})

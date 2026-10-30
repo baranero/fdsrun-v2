@@ -1,7 +1,9 @@
 """Result archives and download links.
 
-After a job ends, its result files are packed into three uncompressed ZIPs (CSV + logs,
-Smokeview, everything) so that a user downloads one file instead of hundreds. Downloads go
+After a job ends, the small "CSV and logs" ZIP is packed automatically. The large ones
+(Smokeview, everything) duplicate gigabytes of results, so they are packed only when the user
+asks, only if the disk has room, and are deleted again after LARGE_ARCHIVE_HOURS (the result
+files themselves stay). See the 30.10.2026 incident: duplicated archives filled the disk. Downloads go
 through /pobierz/<id>/<name>: in production Caddy serves the bytes (with HTTP Range, so
 curl -C - / wget -c resume), after asking Django whether the request may see the file.
 """
@@ -32,6 +34,9 @@ ARCHIVES = (
     ("smokeview", "Smokeview", "Pliki do wizualizacji; duże", ("smokeview", "input")),
     ("all", "Wszystko", "Komplet wyników", None),
 )
+AUTO_ARCHIVES = ("csv",)
+LARGE_ARCHIVE_HOURS = 48
+DISK_RESERVE_BYTES = 5 * 1024**3   # never let an archive eat the last 5 GB
 
 
 DESCRIPTIONS = (
@@ -87,76 +92,125 @@ def archive_name(job, key) -> str:
     return f"{job.chid or job.public_id}_{key}.zip"
 
 
-def archive_files(job):
-    """Archives that exist, with sizes: [{key, title, desc, name, size, sha256}]."""
-    d = archive_dir(job)
-    if not (d / "ready").exists():
+def _chosen(job, key, files):
+    groups = next(g for k, _, _, g in ARCHIVES if k == key)
+    chosen = [p for p in files if groups is None or group_of(p.name) in groups]
+    if key == "smokeview" and not any(group_of(p.name) == "smokeview" for p in chosen):
         return []
+    if key == "csv" and not any(group_of(p.name) in ("csv", "logs") for p in chosen):
+        return []
+    return chosen
+
+
+def archive_files(job):
+    """Every archive kind with its state: [{key, title, desc, name, ready, building, size, est_size, built, sha256}].
+    `size` only for ready ones; `est_size` is what packing would take."""
+    d = archive_dir(job)
+    files = [p for p in job.results_dir.iterdir() if p.is_file()] if job.results_dir.exists() else []
     out = []
     for key, title, desc, _ in ARCHIVES:
+        chosen = _chosen(job, key, files)
+        if not chosen:
+            continue
         p = d / archive_name(job, key)
-        if p.is_file():
-            sha = (d / (p.name + ".sha256")).read_text().split()[0] if (d / (p.name + ".sha256")).exists() else ""
-            out.append({"key": key, "title": title, "desc": desc, "name": p.name, "size": p.stat().st_size, "sha256": sha,
-                        "built": timezone.datetime.fromtimestamp((d / "ready").stat().st_mtime, tz=timezone.get_current_timezone())})
+        ready = p.is_file()
+        marker = d / f"building-{key}"
+        building = marker.exists() and not ready and time.time() - marker.stat().st_mtime < 7200
+        item = {"key": key, "title": title, "desc": desc, "name": p.name, "ready": ready, "building": building,
+                "large": key not in AUTO_ARCHIVES, "est_size": sum(f.stat().st_size for f in chosen)}
+        if ready:
+            st = p.stat()
+            sha = d / (p.name + ".sha256")
+            item.update(size=st.st_size, sha256=sha.read_text().split()[0] if sha.exists() else "",
+                        built=timezone.datetime.fromtimestamp(st.st_mtime, tz=timezone.get_current_timezone()))
+            if key not in AUTO_ARCHIVES:
+                item["expires"] = item["built"] + timezone.timedelta(hours=LARGE_ARCHIVE_HOURS)
+        out.append(item)
     return out
 
 
+def ready_archives(job):
+    return [a for a in archive_files(job) if a["ready"]]
+
+
 def archives_building(job) -> bool:
-    """True while archives are being packed; a marker older than 2 h is treated as stale."""
-    d = archive_dir(job)
-    marker = d / "building"
-    if not marker.exists() or (d / "ready").exists():
-        return False
-    import time
-
-    return time.time() - marker.stat().st_mtime < 7200
+    return any(a["building"] for a in archive_files(job))
 
 
-def build_archives(job) -> int:
-    """Pack result files into the three ZIPs (stored, not deflated: FDS output does not compress
-    well and storing is many times faster). Returns the number of archives written."""
+def room_for(nbytes) -> bool:
+    import shutil
+
+    root = Path(settings.JOB_DATA_ROOT)
+    root.mkdir(parents=True, exist_ok=True)
+    return shutil.disk_usage(root).free - nbytes > DISK_RESERVE_BYTES
+
+
+def build_archives(job, keys=AUTO_ARCHIVES) -> int:
+    """Pack the given archive kinds (stored, not deflated: FDS output does not compress well and
+    storing is many times faster). Skips a kind when the disk has no room. Returns the number written."""
     files = [p for p in job.results_dir.iterdir() if p.is_file()] if job.results_dir.exists() else []
     if not files:
         return 0
     d = archive_dir(job)
     d.mkdir(parents=True, exist_ok=True)
-    (d / "ready").unlink(missing_ok=True)
-    (d / "building").write_text("1\n")
     n = 0
-    for key, _, _, groups in ARCHIVES:
-        chosen = [p for p in files if groups is None or group_of(p.name) in groups]
-        # a partial archive only makes sense when it holds something of its own kind
-        if not chosen or (key == "smokeview" and not any(group_of(p.name) == "smokeview" for p in chosen)) or (key == "csv" and not any(group_of(p.name) in ("csv", "logs") for p in chosen)):
+    for key in keys:
+        chosen = _chosen(job, key, files)
+        if not chosen:
             continue
+        marker = d / f"building-{key}"
+        if not room_for(sum(p.stat().st_size for p in chosen)):
+            marker.unlink(missing_ok=True)
+            continue
+        marker.write_text("1\n")
         target = d / archive_name(job, key)
         tmp = d / (target.name + ".part")
-        with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_STORED, allowZip64=True) as z:
-            for p in sorted(chosen):
-                z.write(p, arcname=p.name)
-        tmp.replace(target)
-        h = hashlib.sha256()
-        with open(target, "rb") as fh:
-            for chunk in iter(lambda: fh.read(1 << 20), b""):
-                h.update(chunk)
-        (d / (target.name + ".sha256")).write_text(f"{h.hexdigest()}  {target.name}\n")
-        n += 1
-    (d / "ready").write_text("ok\n")
-    (d / "building").unlink(missing_ok=True)
+        try:
+            target.unlink(missing_ok=True)
+            with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_STORED, allowZip64=True) as z:
+                for p in sorted(chosen):
+                    z.write(p, arcname=p.name)
+            tmp.replace(target)
+            h = hashlib.sha256()
+            with open(target, "rb") as fh:
+                for chunk in iter(lambda: fh.read(1 << 20), b""):
+                    h.update(chunk)
+            (d / (target.name + ".sha256")).write_text(f"{h.hexdigest()}  {target.name}\n")
+            n += 1
+        except OSError:
+            tmp.unlink(missing_ok=True)
+            target.unlink(missing_ok=True)
+        finally:
+            marker.unlink(missing_ok=True)
     return n
 
 
+def expire_large_archives(now=None) -> int:
+    """Delete on-demand archives older than LARGE_ARCHIVE_HOURS. Returns bytes freed."""
+    now = now or time.time()
+    freed = 0
+    root = Path(settings.JOB_DATA_ROOT)
+    if not root.exists():
+        return 0
+    for d in root.glob("*/archives"):
+        for p in d.iterdir():
+            if p.is_file() and not any(p.name.endswith(f"_{k}.zip") or p.name.endswith(f"_{k}.zip.sha256") for k in AUTO_ARCHIVES) \
+                    and p.name.endswith((".zip", ".sha256")) and now - p.stat().st_mtime > LARGE_ARCHIVE_HOURS * 3600:
+                freed += p.stat().st_size
+                p.unlink()
+    return freed
+
+
 @shared_task
-def build_archives_task(job_id):
+def build_archives_task(job_id, keys=AUTO_ARCHIVES):
     from .models import Job, log_event
 
     job = Job.objects.get(id=job_id)
-    try:
-        n = build_archives(job)
-    finally:
-        (archive_dir(job) / "building").unlink(missing_ok=True)
+    n = build_archives(job, tuple(keys))
     if n:
-        log_event(job, "archives", f"{n} archiwa gotowe" + (" (stan w trakcie obliczeń)" if job.is_active else ""), actor="system")
+        log_event(job, "archives", f"gotowe: {', '.join(keys)}" + (" (stan w trakcie obliczeń)" if job.is_active else ""), actor="system")
+    elif any(k not in AUTO_ARCHIVES for k in keys):
+        log_event(job, "archives_skipped", "za mało miejsca na dysku na duże archiwum", actor="system")
 
 
 # ----- download links -----
@@ -165,7 +219,7 @@ def resolve(job, name):
     """Map a download name to (path on disk, relative path under JOB_DATA_ROOT) or None."""
     for base in (archive_dir(job), job.results_dir):
         p = (base / name).resolve()
-        if str(p).startswith(str(base.resolve())) and p.is_file() and not p.name.endswith(".part") and p.name != "ready":
+        if str(p).startswith(str(base.resolve())) and p.is_file() and not p.name.endswith(".part") and p.name != "ready" and not p.name.startswith("building"):
             rel = p.relative_to(Path(settings.JOB_DATA_ROOT).resolve())
             return p, "/" + rel.as_posix()
     if name == job.filename and job.input_path.is_file():

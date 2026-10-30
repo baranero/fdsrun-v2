@@ -4,6 +4,9 @@ Decyzje podjęte w trakcie budowy, od najnowszej. Decyzje klienta z planu wdroż
 
 ## 2026-10-26 — Etap 0
 
+**D-12. Awaria portalu nie może zabić obliczeń (incydent 29/30.10.2026).**
+Osiem równoległych zleceń i dublujące je archiwa ZIP zapełniły dysk portalu; baza danych stanęła, portal przestał przyjmować sygnały od maszyn, a strażnik usunął żywą maszynę po 10 minutach ciszy. Zmiany: (1) strażnik przed przerwaniem pyta Hetznera, czy serwer działa — działający serwer bez sygnału jest zostawiany do 6 h, z alarmem do admina; (2) automatycznie powstaje tylko małe archiwum „CSV i logi”, duże tylko na żądanie, gdy jest miejsce (rezerwa 5 GB), i znikają po 48 h; (3) zlecenie przerwane z winy infrastruktury (brak odpowiedzi) jest bezpłatne; (4) przerwane zlecenie z plikami restartu można wznowić — wyniki są przenoszone do wznowienia, FDS startuje z RESTART=.TRUE.; (5) pliki restartu są wysyłane w całości po każdym zapisie (wcześniej nadpisanie o tym samym rozmiarze nie było wykrywane); (6) awaryjne „free-space” i raport dysku w panelu wdrożeń.
+
 **D-11. Rozliczenia (decyzje klienta 29.10.2026).**
 Wyniki są do pobrania od razu po obliczeniach, bez czekania na zapłatę. Faktura przychodzi e-mailem; klient płaci dowolną metodą udostępnioną przez Stripe (karta, BLIK, Przelewy24, portfele) albo zwykłym przelewem na konto firmy. Firmy wybierają fakturę po każdym zleceniu albo zbiorczą za miesiąc (wystawianą 1. dnia następnego miesiąca); termin płatności 14 dni. Nowe konto ma limit nieopłaconego salda 500 zł do pierwszej zapłaconej faktury; zaufane konta bez limitu. Faktura po terminie blokuje uruchamianie nowych zleceń, nie pobieranie. Weryfikacja karty przed pierwszym zleceniem nie jest obowiązkowa. Stawka studencka po weryfikacji domeny uczelni albo przez administratora. Na stagingu faktury powstają jako projekty; do ING (KSeF) trafiają dopiero po ręcznym „Wystaw w ING” w panelu.
 

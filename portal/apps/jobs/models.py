@@ -85,6 +85,7 @@ class Job(models.Model):
     stop_requested = models.BooleanField(default=False)
     sync_requested_at = models.DateTimeField(null=True, blank=True)   # user asked for current files
     hidden_at = models.DateTimeField(null=True, blank=True)
+    restart_of = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="restarts")
     invoice = models.ForeignKey("billing.Invoice", null=True, blank=True, on_delete=models.SET_NULL, related_name="jobs")           # deleted by the client: files gone, row kept for billing
     files_synced_at = models.DateTimeField(null=True, blank=True)     # last file received from the machine
     # cost cap: when the projected time exceeds the estimate by 30%, the run pauses until the user confirms

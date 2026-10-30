@@ -29,6 +29,10 @@ UPLOAD_EVERY_S = 60           # small files (CSV, .out, .smv) — whole file
 LARGE_EVERY_S = 300           # large files (slices, boundary, 3D smoke) — only the new bytes
 SMALL_FILE_LIMIT = 64 * 1024 * 1024
 CHUNK = 256 * 1024 * 1024     # one append request carries at most this much
+# files FDS rewrites in place (same size, new content): never append, always send whole once
+# they have been quiet for a moment (restart dumps are rewritten every DT_RESTART)
+REWRITTEN = (".restart",)
+QUIET_S = 15
 HEAD_BYTES = 64 * 1024        # fingerprint of a file's start: detects a rewrite
 STOP_GRACE_S = 300
 
@@ -84,7 +88,7 @@ class Portal:
 
     def download(self, path, dest):
         req = urllib.request.Request(self._url(path), headers=self.headers)
-        with urllib.request.urlopen(req, timeout=120) as r, open(dest, "wb") as f:
+        with urllib.request.urlopen(req, timeout=600) as r, open(dest, "wb") as f:
             shutil.copyfileobj(r, f)
 
     def upload(self, local_path, name, retries=3):
@@ -226,6 +230,13 @@ class Uploader:
             st = os.stat(p)
             if not final and time.time() - st.st_mtime < 3 and st.st_size <= SMALL_FILE_LIMIT:
                 continue  # small file still being written
+            if name.endswith(REWRITTEN):
+                sig = (st.st_size, int(st.st_mtime))
+                if self.sent.get(name) != sig and (final or time.time() - st.st_mtime >= QUIET_S) and (large or final):
+                    if self.portal.upload(p, name):
+                        self.sent[name] = sig
+                        sent_any = True
+                continue
             if st.st_size <= SMALL_FILE_LIMIT and name not in self.offsets:
                 sig = (st.st_size, int(st.st_mtime))
                 if self.sent.get(name) != sig and self.portal.upload(p, name):
@@ -272,6 +283,23 @@ def main():
         procs = int(spec["procs"])
         portal.download("input", os.path.join(WORK, fds_file))
         log(f"job {spec['job_id']}: {fds_file}, chid={chid}, procs={procs}")
+        prefetch = spec.get("prefetch") or []
+        if prefetch:
+            total = sum(int(f["size"]) for f in prefetch)
+            progress("preparing", message=f"Pobieram wyniki poprzedniego biegu ({total / 1024**3:.1f} GB) do wznowienia")
+            for f in prefetch:
+                dest = os.path.join(WORK, f["name"])
+                for attempt in range(3):
+                    try:
+                        portal.download("prefetch/" + urllib.parse.quote(f["name"]), dest)
+                        if os.path.getsize(dest) == int(f["size"]):
+                            break
+                    except Exception as e:  # noqa: BLE001
+                        log(f"prefetch {f['name']}: {e}")
+                    time.sleep(5 * (attempt + 1))
+                else:
+                    raise RuntimeError(f"cannot download {f['name']} for the restart")
+            log(f"prefetched {len(prefetch)} files, {total} B")
 
         for i in range(10):
             if run(["docker", "pull", image], capture_output=True).returncode == 0:
@@ -307,6 +335,13 @@ def main():
         progress("preparing", message=f"FDS wystartował na {procs} procesach")
         out_path = os.path.join(WORK, f"{chid}.out")
         uploader = Uploader(portal, exclude=[fds_file, "fds_stdout.log"])
+        for f in prefetch:  # the portal already holds these bytes: send only what FDS adds
+            p = os.path.join(WORK, f["name"])
+            st = os.stat(p)
+            if st.st_size > SMALL_FILE_LIMIT and not f["name"].endswith(REWRITTEN):
+                uploader.offsets[f["name"]] = st.st_size
+            else:
+                uploader.sent[f["name"]] = (st.st_size, int(st.st_mtime))
         last_upload = time.time()
         stop_sent_at = None
         paused = False

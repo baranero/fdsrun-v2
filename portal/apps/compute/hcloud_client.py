@@ -74,3 +74,15 @@ def list_app_servers():
     """All servers carrying our label — the watchdog uses this to find forgotten machines."""
     c = _client()
     return c.servers.get_all(label_selector=f"app={settings.COMPUTE_LABEL}")
+
+
+def server_running(hcloud_id: int):
+    """True/False from Hetzner; None when Hetzner cannot be asked (then assume alive)."""
+    try:
+        s = _client().servers.get_by_id(hcloud_id)
+    except Exception as e:  # noqa: BLE001
+        if "not_found" in str(e).lower() or "404" in str(e):
+            return False
+        log.warning("hcloud: cannot check server %s: %s", hcloud_id, e)
+        return None
+    return s.status in ("running", "starting", "initializing")

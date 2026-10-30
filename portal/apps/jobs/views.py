@@ -43,7 +43,7 @@ def dashboard(request):
             storage += sum(p.stat().st_size for p in j.results_dir.iterdir() if p.is_file())
             if archives.archive_dir(j).exists():
                 storage += sum(p.stat().st_size for p in archives.archive_dir(j).iterdir() if p.is_file())
-    recent = [dict(job=j, archive=next((a for a in archives.archive_files(j) if a["key"] == "all"), None)) for j in recent]
+    recent = [dict(job=j, archive=next((a for a in archives.ready_archives(j) if a["key"] == "csv"), None)) for j in recent]
     return render(request, "jobs/dashboard.html", {
         "active": active, "recent": recent, "drafts": drafts,
         "n_running": sum(1 for j in active if j.status == Job.Status.RUNNING),
@@ -122,21 +122,57 @@ def job_sync(request, public_id):
 @login_required
 @require_POST
 def job_snapshot(request, public_id):
-    """Pack what the portal holds right now into the archives, while the job runs."""
+    """Pack one archive kind (?key=csv|smokeview|all) from what the portal holds now — during
+    the run (current state) or after it (large archives are made on request only)."""
     job = _own_job(request, public_id)
-    if job.is_active and job.result_files() and not archives.archives_building(job):
-        (archives.archive_dir(job)).mkdir(parents=True, exist_ok=True)
-        (archives.archive_dir(job) / "building").write_text("1\n")
-        (archives.archive_dir(job) / "ready").unlink(missing_ok=True)
-        try:
-            archives.build_archives_task.delay(job.id)
-        except Exception:  # noqa: BLE001  (queue down: do not leave a stuck "packing" marker)
-            (archives.archive_dir(job) / "building").unlink(missing_ok=True)
-            messages.error(request, "Nie udało się zlecić pakowania — spróbuj za chwilę. Pojedyncze pliki możesz pobierać od razu.")
-            return redirect(reverse("jobs:detail", args=[public_id]) + "#pliki")
-        log_event(job, "snapshot_requested", actor=request.user.email)
-        messages.info(request, "Pakuję bieżący stan wyników. Archiwa pojawią się tu za chwilę; obliczenia biegną dalej.")
+    key = request.POST.get("key", "csv")
+    if key not in {k for k, *_ in archives.ARCHIVES}:
+        raise Http404
+    item = next((a for a in archives.archive_files(job) if a["key"] == key), None)
+    if not item or item["building"]:
+        return redirect(reverse("jobs:detail", args=[public_id]) + "#pliki")
+    if not archives.room_for(item["est_size"]):
+        messages.error(request, "Na serwerze brakuje teraz miejsca na to archiwum. Pobierz pliki pojedynczo albo archiwum „CSV i logi” — napisaliśmy już do administratora.")
+        from . import notify
+
+        notify.admin_alert("brak miejsca na archiwum", f"{job.public_id} {job.name}: archiwum {key} ({item['est_size'] // 2**20} MB) nie mieści się na dysku.")
+        return redirect(reverse("jobs:detail", args=[public_id]) + "#pliki")
+    d = archives.archive_dir(job)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"building-{key}").write_text("1\n")
+    try:
+        archives.build_archives_task.delay(job.id, [key])
+    except Exception:  # noqa: BLE001  (queue down: do not leave a stuck "packing" marker)
+        (d / f"building-{key}").unlink(missing_ok=True)
+        messages.error(request, "Nie udało się zlecić pakowania — spróbuj za chwilę. Pojedyncze pliki możesz pobierać od razu.")
+        return redirect(reverse("jobs:detail", args=[public_id]) + "#pliki")
+    log_event(job, "archive_requested", key, actor=request.user.email)
+    messages.info(request, "Pakuję archiwum. Pojawi się tu za chwilę (duże — kilka minut).")
     return redirect(reverse("jobs:detail", args=[public_id]) + "#pliki")
+
+
+@login_required
+@require_POST
+def job_resume(request, public_id):
+    from apps.billing.services import can_start
+
+    from .resume import resume, resumable
+
+    job = _own_job(request, public_id)
+    if not resumable(job):
+        messages.error(request, "Tego zlecenia nie da się wznowić.")
+        return redirect("jobs:detail", public_id=public_id)
+    left = max(0.05, 1 - (job.progress_t or 0) / job.sim_time) if job.sim_time else 1
+    ok, why = can_start(request.user, job.est_price_pln * left)
+    if not ok:
+        if why == "profile":
+            return redirect(reverse("billing:profile") + "?next=" + reverse("jobs:detail", args=[public_id]))
+        messages.error(request, why)
+        return redirect("jobs:detail", public_id=public_id)
+    new = resume(job, request.user.email)
+    compute_tasks.launch_job.delay(new.id)
+    messages.success(request, f"Wznawiam obliczenia od ostatniego zapisu. Wyniki poprzedniego biegu są w tym zleceniu i FDS będzie je uzupełniał.")
+    return redirect("jobs:detail", public_id=new.public_id)
 
 
 @login_required
@@ -256,8 +292,14 @@ def job_detail(request, public_id):
     }
     ctx["file_groups"] = archives.group_files(ctx["files"])
     ctx["archives"] = archives.archive_files(job)
-    ctx["archives_building"] = archives.archives_building(job)
-    ctx["archives_pending"] = ctx["archives_building"] or (bool(ctx["files"]) and not ctx["archives"] and job.status in (Job.Status.DONE, Job.Status.CANCELLED, Job.Status.FAILED))
+    ctx["archives_ready"] = [a for a in ctx["archives"] if a["ready"]]
+    ctx["archives_building"] = any(a["building"] for a in ctx["archives"])
+    ctx["archives_pending"] = ctx["archives_building"]
+    ctx["archive_hours"] = archives.LARGE_ARCHIVE_HOURS
+    from .resume import resumable
+
+    ctx["resumable"] = resumable(job)
+    ctx["resumed_as"] = job.restarts.first()
     ctx["files_size"] = sum(f["size"] for f in ctx["files"])
     if request.htmx:
         return render(request, "jobs/_status.html", ctx)

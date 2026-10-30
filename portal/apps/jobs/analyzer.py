@@ -51,3 +51,22 @@ def prepare_run_file(src: Path, dst: Path, procs: int) -> dict:
     if not data.get("ok"):
         raise AnalyzerError(data.get("error", "Nie udało się przygotować pliku do obliczeń"))
     return data
+
+
+def make_restart_input(src: Path, dst: Path) -> None:
+    """Copy of the input with RESTART=.TRUE. in &MISC, so FDS continues from CHID_n.restart."""
+    import re
+
+    text = src.read_text(errors="replace")
+    misc = re.search(r"&MISC\b", text, re.I)
+    if misc:
+        # drop an existing RESTART=… inside the first &MISC group, then add ours right after &MISC
+        end = text.find("/", misc.end())
+        group = re.sub(r"\bRESTART\s*=\s*\.?\w+\.?\s*,?", "", text[misc.end():end], flags=re.I)
+        text = text[:misc.end()] + " RESTART=.TRUE.," + group + text[end:]
+    else:
+        head = re.search(r"&HEAD\b[^/]*/", text, re.I | re.S)
+        at = head.end() if head else 0
+        text = text[:at] + "\n&MISC RESTART=.TRUE. /\n" + text[at:]
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(text)

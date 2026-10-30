@@ -8,5 +8,6 @@ urlpatterns = [
     path("jobs/<str:public_id>/input", views.job_input, name="input"),
     path("jobs/<str:public_id>/progress", views.job_progress, name="progress"),
     path("jobs/<str:public_id>/files/<str:name>", views.job_upload, name="upload"),
+    path("jobs/<str:public_id>/prefetch/<str:name>", views.job_prefetch, name="prefetch"),
     path("jobs/<str:public_id>/finish", views.job_finish, name="finish"),
 ]

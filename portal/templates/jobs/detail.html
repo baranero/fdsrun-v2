@@ -21,12 +21,25 @@
         {% endif %}
         </div>
       </details>
-      {% if archives and not job.is_active %}<a class="btn primary" href="#pliki" data-tab="pliki">Pobierz wyniki</a>{% elif job.is_active and files %}<a class="btn" href="#pliki" data-tab="pliki">Pobierz bieżący stan</a>{% endif %}
+      {% if files and not job.is_active %}<a class="btn primary" href="#pliki" data-tab="pliki">Pobierz wyniki</a>{% elif job.is_active and files %}<a class="btn" href="#pliki" data-tab="pliki">Pobierz bieżący stan</a>{% endif %}
     </div>
   </div>
 </div>
 
 {% include "jobs/_status.html" %}
+
+{% if resumable %}
+<div class="live-box">
+  <div>
+    <h3>Dokończ od ostatniego zapisu</h3>
+    <p class="muted small">Obliczenia przerwały się przy t ≈ {{ job.progress_t|floatformat:0 }} s z {{ job.sim_time|floatformat:0 }} s, a FDS zdążył zapisać pliki restartu. Wznowienie startuje z ostatniego z nich (zwykle kilka minut symulacji wcześniej) i dopisuje wyniki do istniejących plików — nie liczysz od zera, płacisz tylko za brakującą część (ok. {{ job.est_hours|floatformat:1 }} h × pozostały ułamek).{% if job.status == 'stalled' %} To przerwane zlecenie jest bezpłatne.{% endif %}</p>
+  </div>
+  <form method="post" action="{% url 'jobs:resume' job.public_id %}" onsubmit="return confirm('Wznowić obliczenia od ostatniego zapisu? Wyniki tego zlecenia zostaną przeniesione do wznowienia.')">{% csrf_token %}<button class="btn primary" type="submit">Wznów od ostatniego zapisu</button></form>
+</div>
+{% elif resumed_as %}
+<div class="notice">Wyniki tego zlecenia zostały przeniesione do wznowienia <a href="{% url 'jobs:detail' resumed_as.public_id %}">{{ resumed_as.name }}</a>.</div>
+{% endif %}
+{% if job.restart_of %}<div class="notice">To wznowienie zlecenia <a href="{% url 'jobs:detail' job.restart_of.public_id %}">{{ job.restart_of.name }}</a> od ostatniego zapisu restartu.</div>{% endif %}
 
 {% if job.status == 'draft' %}
 <nav class="tabs" id="tabs">
@@ -141,30 +154,39 @@
     </div>
     <div class="actions">
       <form method="post" action="{% url 'jobs:sync' job.public_id %}" class="inline">{% csrf_token %}<button class="btn" type="submit" {% if job.sync_requested_at %}disabled{% endif %}>Zsynchronizuj teraz</button></form>
-      <form method="post" action="{% url 'jobs:snapshot' job.public_id %}" class="inline">{% csrf_token %}<button class="btn primary" type="submit" {% if archives_building or not files %}disabled{% endif %}>{% if archives_building %}Pakuję…{% else %}Spakuj bieżący stan{% endif %}</button></form>
+      <form method="post" action="{% url 'jobs:snapshot' job.public_id %}" class="inline">{% csrf_token %}<input type="hidden" name="key" value="csv"><button class="btn primary" type="submit" {% if archives_building or not files %}disabled{% endif %}>{% if archives_building %}Pakuję…{% else %}Spakuj CSV i logi{% endif %}</button></form>
     </div>
   </div>
   {% endif %}
   {% if archives %}
   <section>
-    <h2>Pobierz jednym plikiem{% if job.is_active %} <small class="muted">stan z {{ archives.0.built|date:"H:i" }}</small>{% endif %}</h2>
+    <h2>Pobierz jednym plikiem{% if job.is_active %} <small class="muted">stan z chwili spakowania</small>{% endif %}</h2>
     <div class="dl-cards">
       {% for a in archives %}
-      <div class="dl-card{% if a.key == 'all' %} key{% endif %}">
-        <div class="row"><h3>{{ a.title }}</h3><span class="size">{{ a.size|filesizeformat }}</span></div>
+      <div class="dl-card{% if a.key == 'csv' %} key{% endif %}">
+        <div class="row"><h3>{{ a.title }}</h3><span class="size">{% if a.ready %}{{ a.size|filesizeformat }}{% else %}~{{ a.est_size|filesizeformat }}{% endif %}</span></div>
         <p class="muted small">{{ a.desc }}</p>
-        <a class="btn{% if a.key == 'all' %} primary{% endif %}" href="{% url 'download' job.public_id a.name %}">Pobierz {{ a.name }}</a>
+        {% if a.ready %}
+          <a class="btn{% if a.key == 'csv' %} primary{% endif %}" href="{% url 'download' job.public_id a.name %}">Pobierz {{ a.name }}</a>
+          <span class="muted small">spakowano {{ a.built|date:"d.m H:i" }}{% if a.expires %}; archiwum zniknie {{ a.expires|date:"d.m H:i" }}, pliki zostają{% endif %}</span>
+          {% if job.is_active %}<form method="post" action="{% url 'jobs:snapshot' job.public_id %}" class="inline">{% csrf_token %}<input type="hidden" name="key" value="{{ a.key }}"><button class="btn sm quiet" type="submit">Spakuj ponownie</button></form>{% endif %}
+        {% elif a.building %}
+          <button class="btn" disabled>Pakuję…</button>
+        {% else %}
+          <form method="post" action="{% url 'jobs:snapshot' job.public_id %}">{% csrf_token %}<input type="hidden" name="key" value="{{ a.key }}"><button class="btn" type="submit">Przygotuj archiwum</button></form>
+          {% if a.large %}<span class="muted small">Duże archiwum pakujemy na żądanie (kilka minut) i trzymamy {{ archive_hours }} h.</span>{% endif %}
+        {% endif %}
       </div>
       {% endfor %}
     </div>
+    {% if archives_ready %}
     <div class="actions">
       <button class="btn" type="button" hx-get="{% url 'jobs:share' job.public_id %}" hx-target="#share-slot" hx-swap="innerHTML">Link na 7 dni / pobieranie wznawialne</button>
       <span class="muted small">Archiwa są bez kompresji, pobieranie obsługuje wznawianie (HTTP Range).</span>
     </div>
     <div id="share-slot"></div>
+    {% endif %}
   </section>
-  {% elif archives_pending %}
-  <div class="notice">Pakuję wyniki w archiwa — przy dużych plikach Smokeview trwa to kilka minut. Pojedyncze pliki możesz pobierać już teraz.</div>
   {% endif %}
   {% if files %}
   <div class="file-groups">

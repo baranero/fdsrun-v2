@@ -150,6 +150,7 @@ HCLOUD_LOCATION = env("HCLOUD_LOCATION", "nbg1")
 COMPUTE_IMAGE = env("COMPUTE_IMAGE", "ghcr.io/baranero/fdsrun-v2/fds:6.10.1")
 PORTAL_URL = env("PORTAL_URL", "http://localhost:8000")  # how compute machines reach us
 COMPUTE_HEARTBEAT_TIMEOUT_S = int(env("COMPUTE_HEARTBEAT_TIMEOUT_S", "600"))
+COMPUTE_SILENT_ALIVE_S = int(env("COMPUTE_SILENT_ALIVE_S", str(6 * 3600)))  # a silent but running server is kept this long
 COMPUTE_LABEL = env("COMPUTE_LABEL", f"fdsrun-{ENVIRONMENT}")
 
 # Pricing (decisions 5-8 in the implementation plan)

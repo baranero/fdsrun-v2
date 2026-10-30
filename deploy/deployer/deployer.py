@@ -28,7 +28,7 @@ ALLOWED_FILES = {"compose.yml", "Caddyfile", "deployer.py"}
 ALLOWED_ENV = {"IMAGE", "PORTAL_DOMAINS", "PORTAL_URL", "COMPUTE_IMAGE", "FDSRUN_ENV", "HCLOUD_LOCATION", "EMAIL_HOST", "EMAIL_PORT", "EMAIL_HOST_USER", "EMAIL_HOST_PASSWORD", "DEFAULT_FROM_EMAIL", "ADMIN_EMAIL", "COMPANY_NAME", "COMPANY_ADDRESS", "COMPANY_NIP", "COMPANY_EMAIL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "MS_CLIENT_ID", "MS_CLIENT_SECRET", "STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_WEBHOOK_SECRET", "ING_API_KEY", "COMPANY_BANK_ACCOUNT"}
 SECRET_ENV = {k for k in ALLOWED_ENV if k.endswith(("PASSWORD", "SECRET", "_KEY"))}
 MAX_SKEW_S = 300
-ALLOWED_MANAGE = {"smoke_test", "job_status", "job_log", "job_rate", "job_retry", "job_stop", "jobs_list", "promote_admin", "purge_jobs", "keys_check", "build_archives", "send_test_mail", "share_link", "migrate", "showmigrations"}
+ALLOWED_MANAGE = {"smoke_test", "job_status", "job_log", "job_rate", "job_retry", "job_stop", "jobs_list", "promote_admin", "purge_jobs", "job_resume", "set_price", "keys_check", "build_archives", "send_test_mail", "share_link", "migrate", "showmigrations"}
 
 
 def read_env():

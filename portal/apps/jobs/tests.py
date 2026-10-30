@@ -156,7 +156,16 @@ class JobFlowTests(TestCase):
         opt = job.analysis["advice"]["options"][0]
         self.client.post(reverse("jobs:start", args=[job.public_id]), {"procs": opt["procs"], "server_type": opt["server"]})
         Job.objects.filter(id=job.id).update(status=Job.Status.RUNNING, last_heartbeat=timezone.now() - timezone.timedelta(hours=1))
-        watchdog()
+        # silent for an hour but Hetzner says the server runs: the job is kept (portal outage case)
+        with mock.patch("apps.compute.hcloud_client.server_running", return_value=True):
+            watchdog()
+        job.refresh_from_db()
+        self.assertEqual(job.status, Job.Status.RUNNING)
+        self.assertIn("brak kontaktu", job.status_message)
+        delete_server.assert_not_called()
+        # the server is gone: the job ends and the machine record is cleaned up
+        with mock.patch("apps.compute.hcloud_client.server_running", return_value=False):
+            watchdog()
         job.refresh_from_db()
         self.assertEqual(job.status, Job.Status.STALLED)
         delete_server.assert_called_once_with(7)
@@ -277,9 +286,22 @@ class DownloadTests(TestCase):
     def test_archives_and_downloads(self):
         from apps.jobs import archives
 
-        self.assertEqual(archives.build_archives(self.job), 3)
-        names = [a["key"] for a in archives.archive_files(self.job)]
-        self.assertEqual(names, ["csv", "smokeview", "all"])
+        self.assertEqual(archives.build_archives(self.job), 1)          # automatically: only CSV and logs
+        self.assertEqual([a["key"] for a in archives.ready_archives(self.job)], ["csv"])
+        self.assertEqual([a["key"] for a in archives.archive_files(self.job)], ["csv", "smokeview", "all"])
+        self.assertEqual(archives.build_archives(self.job, ("smokeview", "all")), 2)   # on request
+        with mock.patch("apps.jobs.archives.room_for", return_value=False):
+            self.assertEqual(archives.build_archives(self.job, ("all",)), 0)           # no room: skipped
+        import os
+        import time as _t
+
+        old = _t.time() - 49 * 3600
+        for a in archives.ready_archives(self.job):
+            p = archives.archive_dir(self.job) / a["name"]
+            os.utime(p, (old, old))
+        self.assertGreater(archives.expire_large_archives(), 0)
+        self.assertEqual([a["key"] for a in archives.ready_archives(self.job)], ["csv"])   # CSV kept
+        archives.build_archives(self.job, ("smokeview", "all"))
         self.client.login(username="d@example.com", password="x")
         url = reverse("download", args=[self.job.public_id, "m.smv"])
         r = self.client.get(url, HTTP_RANGE="bytes=100-199")
@@ -384,7 +406,7 @@ class LiveFilesTests(TestCase):
         self._post("m_hrr.csv", b"s,kW\nTime,HRR\n0,0\n")
         with mock.patch("apps.jobs.archives.build_archives_task.delay") as d:
             self.client.post(reverse("jobs:snapshot", args=[self.job.public_id]))
-        d.assert_called_once_with(self.job.id)
+        d.assert_called_once_with(self.job.id, ["csv"])
         page = self.client.get(reverse("jobs:detail", args=[self.job.public_id]))
         self.assertContains(page, "Pobieranie w trakcie obliczeń")
         self.assertContains(page, "Pakuję")
@@ -476,3 +498,45 @@ class StudentTests(TestCase):
         self.assertFalse(User(email="x@firma.pl", kind="student").check_student_domain())  # admin decides
         self.assertEqual(multiplier_for(a), 3.0)
         self.assertEqual(multiplier_for(b), 6.0)
+
+
+class ResumeTests(TestCase):
+    def test_restart_input_and_resume(self):
+        from django.contrib.auth import get_user_model
+
+        from apps.jobs.analyzer import make_restart_input
+        from apps.jobs.resume import resumable, resume
+
+        tmp = tempfile.mkdtemp()
+        with override_settings(JOB_DATA_ROOT=tmp):
+            src = Path(tmp) / "a.fds"
+            src.write_text("&HEAD CHID='m' /\n&MISC TMPA=20., RESTART=.FALSE. /\n&TAIL /\n")
+            make_restart_input(src, Path(tmp) / "b.fds")
+            out = (Path(tmp) / "b.fds").read_text()
+            self.assertIn("RESTART=.TRUE.", out)
+            self.assertNotIn(".FALSE.", out)
+            src.write_text("&HEAD CHID='m' /\n&TAIL /\n")
+            make_restart_input(src, Path(tmp) / "c.fds")
+            self.assertIn("&MISC RESTART=.TRUE. /", (Path(tmp) / "c.fds").read_text())
+
+            u = get_user_model().objects.create_user(email="r2@example.com", password="x")
+            job = Job(owner=u, name="m", filename="m.fds", chid="m", status=Job.Status.STALLED, sim_time=1200, progress_t=885, est_hours=8, procs=1, server_type="cpx32")
+            job.save()
+            job.input_path.parent.mkdir(parents=True)
+            job.input_path.write_text(MINIMAL_FDS)
+            job.results_dir.mkdir()
+            self.assertFalse(resumable(job))
+            for n in ("m_1.restart", "m_hrr.csv", "m_01.sf", "fds_stdout.log"):
+                (job.results_dir / n).write_text("x")
+            self.assertTrue(resumable(job))
+            new = resume(job, "t")
+            self.assertEqual(new.status, Job.Status.QUEUED)
+            self.assertEqual(sorted(p.name for p in new.results_dir.iterdir()), ["m_01.sf", "m_1.restart", "m_hrr.csv"])
+            self.assertIn("RESTART=.TRUE.", new.run_path.read_text())
+            self.assertAlmostEqual(new.est_hours, 8 * (1 - 885 / 1200), places=3)
+            self.assertFalse(resumable(job))   # only once
+            spec = self.client.get(f"/api/compute/jobs/{new.public_id}/spec", HTTP_AUTHORIZATION=f"Bearer {new.agent_token}").json()
+            self.assertEqual(len(spec["prefetch"]), 3)
+            r = self.client.get(f"/api/compute/jobs/{new.public_id}/prefetch/m_1.restart", HTTP_AUTHORIZATION=f"Bearer {new.agent_token}")
+            self.assertEqual(b"".join(r.streaming_content), b"x")
+        shutil.rmtree(tmp, ignore_errors=True)

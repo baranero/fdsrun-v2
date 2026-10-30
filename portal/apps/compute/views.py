@@ -53,7 +53,20 @@ def job_spec(request, job):
         "fds_version": job.fds_version,
         "sim_time": job.sim_time,
         "test_window_s": TEST_WINDOW_S,
+        # a resumed job: the machine first downloads the previous results (restart files and
+        # the outputs FDS appends to)
+        "prefetch": [{"name": p.name, "size": p.stat().st_size} for p in sorted(job.results_dir.iterdir())
+                     if p.is_file() and p.name != "fds_stdout.log"] if job.restart_of_id and job.results_dir.exists() else [],
     })
+
+
+@require_GET
+@agent_auth
+def job_prefetch(request, job, name):
+    path = (job.results_dir / name).resolve()
+    if not SAFE_NAME.match(name) or not str(path).startswith(str(job.results_dir.resolve())) or not path.is_file():
+        return HttpResponse("no such file", status=404)
+    return FileResponse(open(path, "rb"), as_attachment=True, filename=name)
 
 
 @require_GET
@@ -96,6 +109,8 @@ def job_progress(request, job):
     if job.status in tasks.FINAL:
         return JsonResponse({"action": "stop"})
     job.last_heartbeat = timezone.now()
+    if "brak kontaktu" in (job.status_message or ""):
+        job.status_message = "Obliczenia w toku"
     phase = data.get("phase", "")
     if phase == "preparing" and job.status == Job.Status.PROVISIONING:
         job.status, job.status_message = Job.Status.PROVISIONING, data.get("message", "Przygotowuję maszynę")

@@ -14,7 +14,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         job = Job.objects.get(public_id=opts["public_id"])
-        items = {a["key"]: a for a in archives.archive_files(job)}
+        items = {a["key"]: a for a in archives.ready_archives(job)}
         if opts["key"] not in items:
             raise CommandError(f"no archive '{opts['key']}' (have: {', '.join(items) or 'none'})")
         self.stdout.write(settings.PORTAL_URL.rstrip("/") + archives.download_url(job, items[opts["key"]]["name"], signed=True))
