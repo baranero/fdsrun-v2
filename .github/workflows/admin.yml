@@ -24,7 +24,7 @@ jobs:
           cmd='${{ github.event.inputs.command }}'
           if [ "$cmd" = "status" ]; then
             python3 deploy/deployer-call.py "$ip" /_deploy/status '{}' > out.json || true
-            python3 -c "import json; d=json.load(open('out.json')); print(d['ps']); print(d['logs'])" > out.txt
+            python3 -c "import json; d=json.load(open('out.json')); print(d['ps']); print('--- disk'); print(d.get('disk','')); print('--- db'); print(d.get('db','')[-3000:]); print('--- web/worker'); print(d['logs'][-4000:])" > out.txt
           else
             args=$(python3 -c "import json,shlex; print(json.dumps(shlex.split('$cmd')))")
             python3 deploy/deployer-call.py "$ip" /_deploy/manage "{\"args\":$args}" > out.json || true

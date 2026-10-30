@@ -97,9 +97,12 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/_deploy/status":
             if self._verify() is None:
                 return
-            _, ps = compose("ps", "--format", "table {{.Service}}\t{{.Status}}\t{{.Image}}")
-            _, logs = compose("logs", "--tail", "80", "web", "worker", "caddy", timeout=60)
-            self._reply(200, {"ps": ps, "logs": logs, "env": {k: ("***" if k in SECRET_ENV else v) for k, v in read_env().items() if k in ALLOWED_ENV}})
+            _, ps = compose("ps", "-a", "--format", "table {{.Service}}\t{{.Status}}\t{{.Image}}")
+            _, df = sh(["df", "-h", "/", "/var/lib/docker"], timeout=30)
+            _, vols = sh(["sh", "-c", "du -sh /var/lib/docker/volumes/*/_data 2>/dev/null | sort -h | tail -n 8"], timeout=120)
+            _, dblog = compose("logs", "--tail", "30", "db", timeout=60)
+            _, logs = compose("logs", "--tail", "25", "web", "worker", timeout=60)
+            self._reply(200, {"ps": ps, "disk": df + "\n" + vols, "db": dblog, "logs": logs, "env": {k: ("***" if k in SECRET_ENV else v) for k, v in read_env().items() if k in ALLOWED_ENV}})
             return
         if self.path == "/_deploy/manage":
             data = self._verify()
