@@ -1,65 +1,37 @@
 {% extends "base.html" %}
 {% block title %}Pulpit · fdsrun{% endblock %}
+{% block topbar %}
+<div class="topbar">
+  <span class="ttl">Pulpit</span>
+  <span class="sub">{% now "l, j E" %}</span>
+  <div class="right"><a class="btn primary" href="{% url 'jobs:new' %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nowe zlecenie</a></div>
+</div>
+{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div><h1>Pulpit</h1><p class="sub">{% if active %}{{ active|length }} {% if active|length == 1 %}zlecenie liczy się{% else %}zlecenia liczą się{% endif %} teraz.{% else %}Nic się teraz nie liczy.{% endif %}</p></div>
-  <a class="btn primary" href="{% url 'jobs:new' %}">Nowe zlecenie</a>
-</div>
+<section class="box accent-top" aria-label="Ten miesiąc">
+  <div class="box-head"><b>{% now "F Y" as mo %}{{ mo|capfirst }}</b><span class="dim">· {{ month_jobs }} zleceń · {{ month_done }} zakończonych{% if month_bad %} · {{ month_bad }} przerwanych lub z błędem{% endif %}</span><span class="right"><a href="{% url 'billing:invoices' %}">Faktury →</a></span></div>
+  <div class="cells">
+    <div class="cell"><span class="k">W toku</span><span class="v"><span class="grad-text">{{ active|length }}</span><small>{{ n_running }} liczy się · {{ n_preparing }} przygotowuje</small></span></div>
+    <div class="cell"><span class="k">Czas obliczeń</span><span class="v">{{ month_hours|floatformat:1 }} h<small>w tym miesiącu</small></span></div>
+    <div class="cell"><span class="k">Wydatki netto</span><span class="v">{{ spent|floatformat:0 }} zł<small>{% if active %}prognoza z bieżącymi {{ projected|floatformat:0 }} zł{% else %}za zakończone zlecenia{% endif %}</small></span>{% if active and projected %}<div class="bar"><span style="width:{% widthratio spent projected 100 %}%"></span><span class="ghost" style="flex:1"></span></div>{% endif %}</div>
+    <div class="cell"><span class="k">Wyniki na dysku</span><span class="v">{{ storage|filesizeformat }}<small>{{ total_jobs }} zleceń · 30 dni od zakończenia</small></span></div>
+  </div>
+</section>
 
-<div class="tiles">
-  <div class="tile"><span class="k">W toku</span><span class="v">{{ active|length }}</span><span class="s">{{ n_running }} liczy się, {{ n_preparing }} przygotowuje</span></div>
-  <div class="tile"><span class="k">Ten miesiąc</span><span class="v">{{ month_jobs }}<small>zleceń</small></span><span class="s">{{ month_done }} zakończonych, {{ month_bad }} przerwanych lub z błędem, {{ month_hours|floatformat:1 }} h obliczeń</span></div>
-  <div class="tile key"><span class="k">Wydatki w tym miesiącu</span><span class="v">{{ spent|floatformat:0 }}<small>zł netto</small></span><span class="s">{% if active %}z bieżącymi zleceniami ok. {{ projected|floatformat:0 }} zł{% else %}za zakończone zlecenia{% endif %}</span></div>
-  <div class="tile"><span class="k">Łącznie</span><span class="v">{{ total_jobs }}</span><span class="s">zleceń, {{ storage|filesizeformat }} wyników (30 dni)</span></div>
-</div>
-
-{% if active %}
-<section>
-  <h2>Liczy się teraz</h2>
+<section class="box list" aria-label="Zlecenia">
+  <div class="group-head">{% include "jobs/_status_icon.html" with status='running' %}W toku<span class="cnt">{{ active|length }}</span>{% if active %}<span class="right">odświeżanie co 15 s</span>{% endif %}</div>
   <div class="active-list" hx-get="{% url 'jobs:dashboard' %}" hx-trigger="every 15s" hx-select=".active-list" hx-swap="outerHTML">
-  {% for j in active %}
-  <div class="active-card">
-    <div class="a-name"><a class="strong" href="{% url 'jobs:detail' j.public_id %}">{{ j.name }}</a><div class="muted small"><span class="mono">{{ j.public_id }}</span>{% if j.project %} · {{ j.project.name }}{% endif %} · {{ j.procs }} proc, {{ j.server_type }}</div></div>
-    <div class="a-status"><span class="pill {{ j.status }}">{{ j.get_status_display }}</span></div>
-    <div class="a-progress"><span class="pct"><b style="color:var(--accent-ink)">{{ j.progress_pct }}%</b> · {{ j.progress_t|floatformat:0 }} / {{ j.sim_time|floatformat:0 }} s</span><div class="bar"><span style="width:{{ j.progress_pct }}%"></span></div><span class="pct">{% if j.eta_hours is not None %}zostało ~{{ j.eta_hours|floatformat:1 }} h{% if j.eta_clock %}, koniec ok. {{ j.eta_clock|date:"D H:i" }}{% endif %}{% else %}{{ j.status_message }}{% endif %}</span></div>
-    <div class="a-cells num">{{ j.total_cells }}<div class="muted small">{{ j.n_meshes }} siatek</div></div>
-    <div class="a-price num"><b>~{{ j.projected_price_pln|floatformat:0 }} zł</b><div class="muted small">szac. {{ j.est_price_pln|floatformat:0 }} zł</div></div>
-    <div class="a-actions"><a class="btn sm" href="{% url 'jobs:detail' j.public_id %}#konsola">Konsola</a>{% if not j.stop_requested %}<form method="post" action="{% url 'jobs:stop' j.public_id %}" class="inline" onsubmit="return confirm('Zatrzymać obliczenia {{ j.name|escapejs }}? FDS zapisze stan do tej chwili.')">{% csrf_token %}<button class="btn sm" type="submit">Zatrzymaj</button></form>{% endif %}</div>
+    {% for j in active %}{% include "jobs/_row.html" %}{% empty %}<div class="row" style="grid-template-columns: 1fr; color: var(--muted)">Nic się teraz nie liczy.</div>{% endfor %}
   </div>
-  {% endfor %}
-  </div>
-</section>
-{% endif %}
 
-{% if drafts %}
-<section>
-  <h2>Przeanalizowane, nieuruchomione</h2>
-  <div class="table-wrap"><table>
-    <thead><tr><th>Zlecenie</th><th>Status</th><th>Postęp</th><th class="num">Komórki</th><th class="num">Procesy</th><th class="num">Cena netto</th><th>Wgrano</th><th></th></tr></thead>
-    <tbody>{% for j in drafts %}{% include "jobs/_row.html" %}{% endfor %}</tbody>
-  </table></div>
-</section>
-{% endif %}
-
-<section>
-  <h2>Ostatnio zakończone</h2>
-  {% if recent %}
-  <div class="table-wrap"><table>
-    <thead><tr><th>Zlecenie</th><th>Status</th><th class="num">Czas obliczeń</th><th class="num">Cena netto</th><th>Wyniki</th><th>Zakończono</th></tr></thead>
-    <tbody>{% for r in recent %}{% with j=r.job %}
-    <tr>
-      <td><a class="strong" href="{% url 'jobs:detail' j.public_id %}">{{ j.name }}</a><div class="muted small"><span class="mono">{{ j.public_id }}</span>{% if j.project %} · {{ j.project.name }}{% endif %}</div></td>
-      <td><span class="pill {{ j.status }}">{{ j.get_status_display }}</span></td>
-      <td class="num">{{ j.wall_text }}</td>
-      <td class="num">{% if j.price_pln %}{{ j.price_pln|floatformat:0 }} zł{% else %}<span class="muted">—</span>{% endif %}</td>
-      <td class="nowrap">{% if r.archive %}<a class="btn sm" href="{% url 'download' j.public_id r.archive.name %}">.zip {{ r.archive.size|filesizeformat }}</a> {% endif %}{% if j.chid %}<a class="btn sm" href="{% url 'download' j.public_id j.chid|add:'.out' %}">.out</a>{% endif %} <a class="btn sm quiet" href="{% url 'jobs:detail' j.public_id %}#pliki">wszystkie</a></td>
-      <td class="muted small nowrap">{% if j.finished_at %}{{ j.finished_at|date:"d.m H:i" }}{% else %}—{% endif %}</td>
-    </tr>
-    {% endwith %}{% endfor %}</tbody>
-  </table></div>
-  <p><a href="{% url 'jobs:list' %}">Wszystkie zlecenia</a></p>
-  {% else %}
-  <div class="empty"><h3>Jeszcze nic nie policzono</h3><p>Wgraj plik .fds — zobaczysz czas i cenę, zanim cokolwiek się uruchomi.</p><a class="btn primary" href="{% url 'jobs:new' %}">Nowe zlecenie</a></div>
+  {% if drafts %}
+  <div class="group-head">{% include "jobs/_status_icon.html" with status='draft' %}Nieuruchomione<span class="cnt">{{ drafts|length }}</span><span class="right">plik przeanalizowany, czeka na wybór serwera</span></div>
+  {% for j in drafts %}{% include "jobs/_row.html" %}{% endfor %}
   {% endif %}
+
+  <div class="group-head">{% include "jobs/_status_icon.html" with status='done' %}Ostatnio zakończone<span class="right"><a href="{% url 'jobs:list' %}">Wszystkie zlecenia →</a></span></div>
+  {% for r in recent %}{% with j=r.job %}{% include "jobs/_row.html" %}{% endwith %}{% empty %}
+  <div class="row" style="grid-template-columns: 1fr"><div class="empty" style="border: 0; padding: 32px 0"><h3>Jeszcze nic nie policzono</h3><p>Wgraj plik .fds — zobaczysz czas i cenę, zanim cokolwiek się uruchomi.</p><a class="btn primary" href="{% url 'jobs:new' %}">Nowe zlecenie</a></div></div>
+  {% endfor %}
 </section>
 {% endblock %}

@@ -1,17 +1,39 @@
-<tr>
-  <td><a class="strong" href="{% url 'jobs:detail' j.public_id %}">{{ j.name }}</a><div class="muted small"><span class="mono">{{ j.public_id }}</span>{% if j.chid and j.chid != j.name %} · CHID <span class="mono">{{ j.chid }}</span>{% endif %}{% if j.project %} · <a class="muted" href="{% url 'jobs:list' %}?p={{ j.project.name|urlencode }}">{{ j.project.name }}</a>{% endif %}</div></td>
-  <td><span class="pill {{ j.status }}">{{ j.get_status_display }}</span></td>
-  <td>
+{% comment %}Jeden wiersz zlecenia (pulpit i lista). Oczekuje `j` (Job).{% endcomment %}
+<div class="row">
+  {% include "jobs/_status_icon.html" with status=j.status %}
+  <span class="id">{{ j.public_id }}</span>
+  <a class="name" href="{% url 'jobs:detail' j.public_id %}" title="{{ j.name }}{% if j.chid and j.chid != j.name %} · CHID {{ j.chid }}{% endif %}">{{ j.name }}</a>
+  <span class="proj">{% if j.project %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><a href="{% url 'jobs:list' %}?p={{ j.project.name|urlencode }}">{{ j.project.name }}</a>{% else %}<span class="muted">bez projektu</span>{% endif %}</span>
+  <div class="prog">
     {% if j.is_active %}
-      <div class="cell-progress"><span class="pct"><b style="color:var(--accent-ink)">{{ j.progress_pct }}%</b> · {{ j.progress_t|floatformat:0 }} / {{ j.sim_time|floatformat:0 }} s</span><div class="bar"><span style="width:{{ j.progress_pct }}%"></span></div><span class="pct">{% if j.eta_hours is not None %}zostało ~{{ j.eta_hours|floatformat:1 }} h{% else %}bieg testowy{% endif %}</span></div>
+      <div class="l1"><div class="bar"><span style="width:{{ j.progress_pct }}%"></span></div><span class="t">{{ j.progress_t|floatformat:0 }} / {{ j.sim_time|floatformat:0 }} s</span></div>
+      <span class="s">{% if j.eta_hours is not None %}zostało ~{{ j.eta_hours|floatformat:1 }} h{% if j.eta_clock %} · koniec ok. {{ j.eta_clock|date:"H:i" }}{% endif %}{% elif j.status_message %}{{ j.status_message }}{% else %}{{ j.get_status_display|lower }}{% endif %}</span>
     {% elif j.status == 'done' %}
-      <div class="cell-progress"><span class="pct" style="color:var(--good)">100% · {{ j.sim_time|floatformat:0 }} s</span><div class="bar done"><span style="width:100%"></span></div><span class="pct">czas obliczeń {{ j.wall_text }}</span></div>
-    {% elif j.status == 'draft' %}<span class="muted small">nieuruchomione</span>
-    {% else %}<span class="muted small">{{ j.progress_pct }}%</span>{% endif %}
-  </td>
-  <td class="num">{{ j.total_cells }}</td>
-  <td class="num">{{ j.procs }} <span class="muted">{{ j.server_type }}</span></td>
-  <td class="num">{% if j.price_pln %}{{ j.price_pln|floatformat:0 }} zł{% elif j.is_active and j.projected_hours %}~{{ j.projected_price_pln|floatformat:0 }} zł{% else %}<span class="muted">~{{ j.est_price_pln|floatformat:0 }} zł</span>{% endif %}</td>
-  <td class="muted small nowrap">{{ j.created_at|date:"d.m.Y H:i" }}</td>
-  <td class="num nowrap">{% if j.is_active %}<a class="btn sm" href="{% url 'jobs:detail' j.public_id %}#konsola">Konsola</a>{% elif j.status == 'done' %}<a class="btn sm" href="{% url 'jobs:detail' j.public_id %}#pliki">Pliki</a>{% elif j.status == 'draft' %}<a class="btn sm primary" href="{% url 'jobs:detail' j.public_id %}">Uruchom</a>{% else %}<a class="btn sm" href="{% url 'jobs:detail' j.public_id %}#konsola">Log</a>{% endif %}</td>
-</tr>
+      <div class="l1"><span class="t">{{ j.wall_text }}</span></div>
+      <span class="s">{{ j.sim_time|floatformat:0 }} s symulacji</span>
+    {% elif j.status == 'draft' %}
+      <div class="l1"><span class="t">{{ j.total_cells }} kom.</span></div>
+      <span class="s{% if j.issue_warn_count %} warn{% endif %}">{% if j.issue_error_count %}{{ j.issue_error_count }} błędów w pliku{% elif j.issue_warn_count %}{{ j.issue_warn_count }} uwag w pliku{% else %}nieuruchomione{% endif %}</span>
+    {% else %}
+      <div class="l1"><div class="bar {% if j.status == 'cancelled' %}done{% else %}bad{% endif %}"><span style="width:{{ j.progress_pct }}%"></span></div><span class="t">{{ j.progress_t|floatformat:0 }} / {{ j.sim_time|floatformat:0 }} s</span></div>
+      <span class="s">{% if j.status_message %}{{ j.status_message|truncatechars:60 }}{% else %}{{ j.get_status_display|lower }}{% endif %}</span>
+    {% endif %}
+  </div>
+  <span class="mach">{% if j.status == 'draft' %}{{ j.n_meshes }} siatek{% else %}{{ j.procs }} · {{ j.server_type }}{% endif %}</span>
+  <span class="price{% if not j.price_pln %} est{% endif %}{% if j.over_estimate %} over{% endif %}">{% if j.price_pln %}{{ j.price_pln|floatformat:0 }} zł{% elif j.is_active and j.projected_hours %}~{{ j.projected_price_pln|floatformat:0 }} zł{% elif j.status == 'draft' %}od {{ j.est_price_pln|floatformat:0 }} zł{% else %}~{{ j.est_price_pln|floatformat:0 }} zł{% endif %}</span>
+  <span class="date">{{ j.created_at|date:"d.m H:i" }}</span>
+  <div class="act">
+    {% if j.status == 'draft' %}<a class="btn sm primary" href="{% url 'jobs:detail' j.public_id %}">Uruchom</a>{% endif %}
+    {% if j.status == 'done' %}<a class="btn sm icon" href="{% url 'jobs:detail' j.public_id %}#pliki" aria-label="Pliki wynikowe" title="Pliki wynikowe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg></a>{% endif %}
+    <details class="popmenu">
+      <summary class="more" aria-label="Więcej"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></summary>
+      <div class="menu-panel">
+        <a href="{% url 'jobs:detail' j.public_id %}">Szczegóły</a>
+        {% if j.is_active %}<a href="{% url 'jobs:detail' j.public_id %}#konsola">Konsola FDS</a><a href="{% url 'jobs:detail' j.public_id %}#wykresy">Wykresy</a>{% endif %}
+        {% if j.status != 'draft' %}<a href="{% url 'jobs:detail' j.public_id %}#pliki">Pliki</a>{% endif %}
+        {% if j.chid and j.status != 'draft' %}<a href="{% url 'download' j.public_id j.chid|add:'.out' %}">Pobierz .out</a>{% endif %}
+        {% if j.is_active and not j.stop_requested %}<div class="sep"></div><form method="post" action="{% url 'jobs:stop' j.public_id %}" onsubmit="return confirm('Zatrzymać obliczenia {{ j.name|escapejs }}? FDS zapisze stan do tej chwili.')">{% csrf_token %}<button type="submit">Zatrzymaj</button></form>{% endif %}
+      </div>
+    </details>
+  </div>
+</div>

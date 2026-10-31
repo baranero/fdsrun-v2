@@ -1,0 +1,11 @@
+{% comment %}Ikona stanu zlecenia. Użycie: {% include "jobs/_status_icon.html" with status=job.status %} (opcjonalnie size="lg"){% endcomment %}
+<svg class="sicon {{ status }}{% if size %} {{ size }}{% endif %}" viewBox="0 0 16 16" aria-hidden="true">
+{% if status == 'running' or status == 'testing' or status == 'finishing' %}<circle class="ring" cx="8" cy="8" r="6.5"/><path class="arc" d="M8 1.5a6.5 6.5 0 0 1 6.5 6.5"/>
+{% elif status == 'queued' or status == 'provisioning' %}<circle class="ring" cx="8" cy="8" r="6.5"/><path class="g" d="M8 4.8v3.4l2.2 1.4"/>
+{% elif status == 'draft' %}<circle class="ring" cx="8" cy="8" r="6.5"/>
+{% elif status == 'done' %}<circle class="fill" cx="8" cy="8" r="6.5"/><path class="g" d="M5 8.2l2 2 4-4.4"/>
+{% elif status == 'failed' %}<circle class="fill" cx="8" cy="8" r="6.5"/><path class="g" d="M5.5 5.5l5 5M10.5 5.5l-5 5"/>
+{% elif status == 'stalled' %}<circle class="ring" cx="8" cy="8" r="6.5"/><path class="g" d="M8 4.5v4M8 11v.01"/>
+{% elif status == 'cancelled' %}<circle class="fill" cx="8" cy="8" r="6.5"/><path class="g" d="M5 8h6"/>
+{% else %}<circle class="ring" cx="8" cy="8" r="6.5"/>{% endif %}
+</svg>
