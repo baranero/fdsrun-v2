@@ -1,34 +1,44 @@
-<div id="status" class="instrument" {% if job.is_active %}hx-get="{% url 'jobs:detail' job.public_id %}" hx-trigger="every 5s" hx-swap="outerHTML"{% endif %}>
-  <div class="row">
-    <span class="pill {{ job.status }}">{{ job.get_status_display }}</span>
-    <span class="msg">{% if job.status_message %}{{ job.status_message }}{% elif job.status == 'draft' %}Plik przeanalizowany. Wybierz serwer i uruchom obliczenia.{% elif job.status == 'done' %}Obliczenia zakończone{% if job.finished_at %} {{ job.finished_at|date:"d.m.Y H:i" }}{% endif %}.{% endif %}</span>
-    {% if job.is_paused %}
-      <form method="post" action="{% url 'jobs:continue' job.public_id %}" class="inline">{% csrf_token %}<button class="btn primary" type="submit">Kontynuuj za ok. {{ job.projected_price_pln|floatformat:0 }} zł</button></form>
-    {% endif %}
-    {% if job.is_active and not job.stop_requested %}
-      <form method="post" action="{% url 'jobs:stop' job.public_id %}" class="inline" onsubmit="return confirm('Zatrzymać obliczenia? FDS zapisze stan do tej chwili, wyniki zostaną do pobrania, a cena obejmie wykorzystany czas.')">{% csrf_token %}<button class="btn" type="submit">Zatrzymaj</button></form>
-    {% elif job.stop_requested and job.is_active %}<span class="muted small">zatrzymywanie…</span>{% endif %}
+<section id="status" class="box runhead" aria-label="Stan zlecenia" {% if job.is_active %}hx-get="{% url 'jobs:detail' job.public_id %}" hx-trigger="every 5s" hx-swap="outerHTML"{% endif %}>
+  {% if job.is_active %}<div class="glow" aria-hidden="true"></div>{% endif %}
+  <div class="hd">
+    {% include "jobs/_status_icon.html" with status=job.status size="lg" %}
+    <div style="flex:1 1 320px;min-width:0">
+      <div class="ttl">{{ job.get_status_display }}<small>{% if job.status_message %}{{ job.status_message }}{% elif job.status == 'draft' %}plik przeanalizowany, wybierz serwer i uruchom obliczenia{% elif job.status == 'done' and job.finished_at %}zakończono {{ job.finished_at|date:"d.m.Y H:i" }}{% elif job.is_active and job.last_heartbeat %}ostatni sygnał z maszyny {{ job.last_heartbeat|timesince }} temu{% endif %}</small></div>
+      <div class="meta">
+        <span>{{ job.filename }}</span>{% if job.chid %}<span>CHID {{ job.chid }}</span>{% endif %}<span>FDS {{ job.fds_version }}</span>
+        {% if job.status != 'draft' %}<span>{{ job.procs }} proc · {{ job.server_type }}</span>{% endif %}
+        <span>{{ job.n_meshes }} siatek · {{ job.total_cells }} kom.</span>
+        {% if job.started_at %}<span>start {{ job.started_at|date:"d.m H:i" }}</span>{% endif %}
+        {% if job.expires_at %}<span>wyniki do {{ job.expires_at|date:"d.m.Y" }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="acts">
+      {% if job.is_paused %}<form method="post" action="{% url 'jobs:continue' job.public_id %}" class="inline">{% csrf_token %}<button class="btn primary" type="submit">Kontynuuj za ok. {{ job.projected_price_pln|floatformat:0 }} zł</button></form>{% endif %}
+      {% if job.is_active and not job.stop_requested %}
+        <form method="post" action="{% url 'jobs:stop' job.public_id %}" class="inline" onsubmit="return confirm('Zatrzymać obliczenia? FDS zapisze stan do tej chwili, wyniki zostaną do pobrania, a cena obejmie wykorzystany czas.')">{% csrf_token %}<button class="btn danger" type="submit">Zatrzymaj</button></form>
+      {% elif job.stop_requested and job.is_active %}<span class="muted small">zatrzymywanie…</span>{% endif %}
+    </div>
   </div>
-  <div class="readouts">
+  <div class="cells">
     {% if job.status == 'draft' %}
-      <div class="readout"><span class="k">Komórki</span><span class="v">{{ job.total_cells }}</span><span class="s">{{ job.n_meshes }} siatek</span></div>
-      <div class="readout"><span class="k">Czas symulacji</span><span class="v">{{ job.sim_time|floatformat:0 }}<small>s</small></span><span class="s">z pliku .fds</span></div>
-      <div class="readout key"><span class="k">Szacowany czas</span><span class="v">{{ job.est_hours|floatformat:1 }}<small>h</small></span><span class="s">{{ job.procs }} proc, {{ job.server_type }}</span></div>
-      <div class="readout key"><span class="k">Szacowana cena</span><span class="v">{{ job.est_price_pln|floatformat:0 }}<small>zł</small></span><span class="s">netto, płatne po obliczeniach</span></div>
+      <div class="cell"><span class="k">Model</span><span class="v mono">{{ job.total_cells }}<small>komórek · {{ job.n_meshes }} siatek</small></span></div>
+      <div class="cell"><span class="k">Czas symulacji</span><span class="v mono">{{ job.sim_time|floatformat:0 }} s<small>T_END z pliku .fds</small></span></div>
+      <div class="cell"><span class="k">Szacowany czas</span><span class="v mono">{{ job.est_hours|floatformat:1 }} h<small>{{ job.procs }} proc · {{ job.server_type }}</small></span></div>
+      <div class="cell"><span class="k">Szacowana cena</span><span class="v mono"><span class="grad-text">{{ job.est_price_pln|floatformat:0 }} zł</span><small>netto, płatne po obliczeniach</small></span></div>
     {% else %}
-      <div class="readout"><span class="k">Krok</span><span class="v">{{ job.progress_step }}<small>Δt = {{ job.progress_dt|floatformat:4 }} s</small></span><span class="s">{% if job.cfl_max is not None %}CFL max {{ job.cfl_max|floatformat:2 }}{% else %}krok czasowy FDS{% endif %}</span></div>
-      <div class="readout"><span class="k">Czas symulacji</span><span class="v">{{ job.progress_t|floatformat:1 }}<small>/ {{ job.sim_time|floatformat:0 }} s</small></span><span class="s">{{ job.progress_pct }}%</span></div>
+      <div class="cell"><span class="k">Czas symulacji</span><span class="v mono">{{ job.progress_t|floatformat:1 }}<small>/ {{ job.sim_time|floatformat:0 }} s · {{ job.progress_pct }}%</small></span></div>
+      <div class="cell"><span class="k">Krok · Δt</span><span class="v mono">{{ job.progress_step }}<small>{{ job.progress_dt|floatformat:4 }} s{% if job.cfl_max is not None %} · CFL {{ job.cfl_max|floatformat:2 }}{% endif %}</small></span></div>
       {% if job.is_active %}
-        <div class="readout key"><span class="k">Pozostało</span><span class="v">{% if job.eta_hours is None %}—{% else %}{{ job.eta_hours|floatformat:1 }}<small>h</small>{% endif %}</span><span class="s">{% if job.eta_clock %}koniec ok. {{ job.eta_clock|date:"D H:i" }}, {% endif %}liczy się {{ job.wall_text }}</span></div>
-        <div class="readout key"><span class="k">Przewidywana cena</span><span class="v">{{ job.projected_price_pln|floatformat:0 }}<small>zł</small></span><span class="s">szacunek przed startem {{ job.est_price_pln|floatformat:0 }} zł</span></div>
+        <div class="cell"><span class="k">Pozostało</span><span class="v mono">{% if job.eta_hours is None %}—{% else %}<span class="grad-text">{{ job.eta_hours|floatformat:1 }} h</span>{% endif %}<small>{% if job.eta_clock %}koniec ok. {{ job.eta_clock|date:"D H:i" }} · {% endif %}liczy się {{ job.wall_text }}</small></span></div>
+        <div class="cell"><span class="k">Przewidywana cena</span><span class="v mono">{{ job.projected_price_pln|floatformat:0 }} zł<small{% if job.over_estimate %} class="warn"{% endif %}>wycena przed startem {{ job.est_price_pln|floatformat:0 }} zł</small></span></div>
       {% else %}
-        <div class="readout"><span class="k">Czas obliczeń</span><span class="v">{{ job.wall_text }}</span><span class="s">{{ job.wall_seconds|floatformat:0 }} s na {{ job.procs }} proc, {{ job.server_type }}</span></div>
-        <div class="readout key"><span class="k">Cena netto</span><span class="v">{% if job.price_pln %}{{ job.price_pln|floatformat:0 }}{% else %}{{ job.est_price_pln|floatformat:0 }}{% endif %}<small>zł</small></span><span class="s">{% if job.price_pln %}końcowa, za {{ job.cost_eur|floatformat:2 }} € serwera{% else %}szacunek, rozliczenie w toku{% endif %}</span></div>
+        <div class="cell"><span class="k">Czas obliczeń</span><span class="v mono">{{ job.wall_text }}<small>{{ job.procs }} proc · {{ job.server_type }}</small></span></div>
+        <div class="cell"><span class="k">Cena netto</span><span class="v mono">{% if job.price_pln %}{{ job.price_pln|floatformat:0 }}{% else %}{{ job.est_price_pln|floatformat:0 }}{% endif %} zł<small>{% if job.price_pln %}końcowa, za {{ job.cost_eur|floatformat:2 }} € serwera{% else %}szacunek, rozliczenie w toku{% endif %}</small></span></div>
       {% endif %}
     {% endif %}
   </div>
-  {% if job.status != 'draft' %}
-  <div class="track{% if job.status == 'done' %} done{% endif %}"><span style="width:{{ job.progress_pct }}%"></span></div>
-  <div class="tline"><span>{{ job.procs }} procesów MPI na {{ job.server_type }} · postęp {{ job.progress_pct }}%</span><span>{% if job.started_at %}start {{ job.started_at|date:"d.m H:i" }}{% endif %}{% if job.finished_at %}, koniec {{ job.finished_at|date:"d.m H:i" }}{% endif %}{% if job.expires_at %}, wyniki do {{ job.expires_at|date:"d.m.Y" }}{% endif %}</span></div>
+  {% if job.status != 'draft' %}<div class="track{% if job.status == 'done' %} done{% elif job.status == 'failed' or job.status == 'stalled' %} bad{% endif %}"><span style="width:{{ job.progress_pct }}%"></span></div>{% endif %}
+  {% if job.over_estimate %}
+  <div class="notice warn" role="status" style="border:0;border-top:1px solid var(--line);border-radius:0"><b>Prognoza przekracza wycenę o {% widthratio job.projected_hours job.est_hours 100 as pct %}{{ pct|add:"-100" }}%.</b> Faza pożaru wymaga mniejszych kroków czasowych, niż zakładał szacunek. Obliczenia biegną dalej, a cena rośnie proporcjonalnie do czasu. Możesz je zatrzymać w dowolnej chwili.</div>
   {% endif %}
-</div>
+</section>

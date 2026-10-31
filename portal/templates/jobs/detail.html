@@ -1,40 +1,43 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}{{ job.name }} · fdsrun{% endblock %}
-{% block content %}
-<div>
-  <div class="crumb"><a href="{% url 'jobs:list' %}">Zlecenia</a> / <span class="mono">{{ job.public_id }}</span></div>
-  <div class="page-head">
-    <div><h1>{{ job.name }}</h1><p class="sub">{% if job.project %}<a href="{% url 'jobs:list' %}?p={{ job.project.name|urlencode }}">{{ job.project.name }}</a> · {% endif %}{{ job.filename }}{% if job.chid and job.chid != job.name %}, CHID {{ job.chid }}{% endif %}, FDS {{ job.fds_version }}</p>{% if job.note %}<p class="sub note">{{ job.note|linebreaksbr }}</p>{% endif %}</div>
-    <div class="actions">
-      <details class="popover"><summary class="btn">Edytuj</summary>
-        <div class="popover-panel"><form method="post" action="{% url 'jobs:edit' job.public_id %}">{% csrf_token %}
-          <p><label for="id_name">Nazwa zlecenia</label><input type="text" name="name" id="id_name" value="{{ edit_form.name.value }}" required maxlength="120"></p>
-          <p><label for="id_project">Projekt (folder)</label><input type="text" name="project" id="id_project" list="projects" value="{{ edit_form.project.value|default:'' }}" autocomplete="off"><datalist id="projects">{% for p in projects %}<option value="{{ p.name }}">{% endfor %}</datalist></p>
-          <p><label for="id_note">Notatka</label><textarea name="note" id="id_note" rows="3" maxlength="2000">{{ edit_form.note.value|default:'' }}</textarea></p>
-          <div class="actions"><button class="btn primary" type="submit">Zapisz</button></div>
-        </form>
-        {% if not job.is_active %}
-        <form method="post" action="{% url 'jobs:delete' job.public_id %}" class="danger-zone" onsubmit="return confirm('Usunąć zlecenie {{ job.name|escapejs }} razem ze wszystkimi plikami wyników? Tego nie da się cofnąć.')">{% csrf_token %}
-          <p class="small muted">Usuwa zlecenie z listy i wszystkie jego pliki z serwera. Nie da się tego cofnąć.</p>
-          <button class="btn danger" type="submit">Usuń zlecenie i pliki</button>
-        </form>
-        {% endif %}
-        </div>
-      </details>
-      {% if files and not job.is_active %}<a class="btn primary" href="#pliki" data-tab="pliki">Pobierz wyniki</a>{% elif job.is_active and files %}<a class="btn" href="#pliki" data-tab="pliki">Pobierz bieżący stan</a>{% endif %}
-    </div>
+{% block topbar %}
+<div class="topbar">
+  <a class="crumb-a" href="{% url 'jobs:list' %}">Zlecenia</a>
+  {% if job.project %}<span class="sep">/</span><a class="crumb-a" href="{% url 'jobs:list' %}?p={{ job.project.name|urlencode }}">{{ job.project.name }}</a>{% endif %}
+  <span class="sep">/</span><span class="ttl" title="{{ job.name }}">{{ job.name|truncatechars:60 }}</span>
+  <span class="id">{{ job.public_id }}</span>
+  <div class="right">
+    <details class="popover"><summary class="btn">Edytuj</summary>
+      <div class="popover-panel"><form method="post" action="{% url 'jobs:edit' job.public_id %}">{% csrf_token %}
+        <p><label for="id_name">Nazwa zlecenia</label><input type="text" name="name" id="id_name" value="{{ edit_form.name.value }}" required maxlength="120"></p>
+        <p><label for="id_project">Projekt (folder)</label><input type="text" name="project" id="id_project" list="projects" value="{{ edit_form.project.value|default:'' }}" autocomplete="off"><datalist id="projects">{% for p in projects %}<option value="{{ p.name }}">{% endfor %}</datalist></p>
+        <p><label for="id_note">Notatka</label><textarea name="note" id="id_note" rows="3" maxlength="2000">{{ edit_form.note.value|default:'' }}</textarea></p>
+        <div class="actions"><button class="btn primary" type="submit">Zapisz</button></div>
+      </form>
+      {% if not job.is_active %}
+      <form method="post" action="{% url 'jobs:delete' job.public_id %}" class="danger-zone" onsubmit="return confirm('Usunąć zlecenie {{ job.name|escapejs }} razem ze wszystkimi plikami wyników? Tego nie da się cofnąć.')">{% csrf_token %}
+        <p class="small muted">Usuwa zlecenie z listy i wszystkie jego pliki z serwera. Nie da się tego cofnąć.</p>
+        <button class="btn danger" type="submit">Usuń zlecenie i pliki</button>
+      </form>
+      {% endif %}
+      </div>
+    </details>
+    {% if files and not job.is_active %}<a class="btn primary" href="#pliki" data-tab="pliki">Pobierz wyniki</a>{% elif job.is_active and files %}<a class="btn primary" href="#pliki" data-tab="pliki">Pobierz bieżący stan</a>{% endif %}
   </div>
 </div>
+{% endblock %}
+{% block content %}
+{% if job.note %}<p class="muted" style="white-space:pre-wrap;max-width:80ch;margin:-8px 0">{{ job.note }}</p>{% endif %}
 
 {% include "jobs/_status.html" %}
 
 {% if resumable %}
-<div class="live-box">
-  <div>
-    <h3>Dokończ od ostatniego zapisu</h3>
-    <p class="muted small">Obliczenia przerwały się przy t ≈ {{ job.progress_t|floatformat:0 }} s z {{ job.sim_time|floatformat:0 }} s, a FDS zdążył zapisać pliki restartu. Wznowienie startuje z ostatniego z nich (zwykle kilka minut symulacji wcześniej) i dopisuje wyniki do istniejących plików — nie liczysz od zera, płacisz tylko za brakującą część (ok. {{ job.est_hours|floatformat:1 }} h × pozostały ułamek).{% if job.status == 'stalled' %} To przerwane zlecenie jest bezpłatne.{% endif %}</p>
+<div class="box">
+  <div class="box-head"><b>Dokończ od ostatniego zapisu</b></div>
+  <div class="box-foot" style="background:none;border:0">
+    <p class="muted small" style="flex:1 1 420px">Obliczenia przerwały się przy t ≈ {{ job.progress_t|floatformat:0 }} s z {{ job.sim_time|floatformat:0 }} s, a FDS zdążył zapisać pliki restartu. Wznowienie startuje z ostatniego z nich (zwykle kilka minut symulacji wcześniej) i dopisuje wyniki do istniejących plików — nie liczysz od zera, płacisz tylko za brakującą część (ok. {{ job.est_hours|floatformat:1 }} h × pozostały ułamek).{% if job.status == 'stalled' %} To przerwane zlecenie jest bezpłatne.{% endif %}</p>
+    <form method="post" action="{% url 'jobs:resume' job.public_id %}" onsubmit="return confirm('Wznowić obliczenia od ostatniego zapisu? Wyniki tego zlecenia zostaną przeniesione do wznowienia.')">{% csrf_token %}<button class="btn primary" type="submit">Wznów od ostatniego zapisu</button></form>
   </div>
-  <form method="post" action="{% url 'jobs:resume' job.public_id %}" onsubmit="return confirm('Wznowić obliczenia od ostatniego zapisu? Wyniki tego zlecenia zostaną przeniesione do wznowienia.')">{% csrf_token %}<button class="btn primary" type="submit">Wznów od ostatniego zapisu</button></form>
 </div>
 {% elif resumed_as %}
 <div class="notice">Wyniki tego zlecenia zostały przeniesione do wznowienia <a href="{% url 'jobs:detail' resumed_as.public_id %}">{{ resumed_as.name }}</a>.</div>
@@ -48,60 +51,53 @@
 </nav>
 
 <div class="panel" id="panel-start">
-  <div class="grid-2">
-    <section>
-      <h2>Plik i model</h2>
-      <div class="chips">
-        <span class="chip">CHID {{ job.chid|default:"—" }}</span>
-        <span class="chip">FDS {{ job.fds_version }}</span>
-        <span class="chip">T_END {{ job.sim_time|floatformat:0 }} s</span>
-        <span class="chip">{{ job.n_meshes }} siatek, {{ job.total_cells }} komórek</span>
-        {% if model.dxMin %}<span class="chip">Δx min {{ model.dxMin|floatformat:3 }} m</span>{% endif %}
-      </div>
-      <h2>Serwer i liczba procesów</h2>
-      <p class="muted small">FDS liczy jedną siatkę na jednym procesie. Czas dyktuje najbardziej obciążony proces, więc więcej rdzeni nie zawsze pomaga — stąd kilka wariantów.</p>
+  <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+    <section class="box" style="flex:3 1 600px;min-width:0">
+      <div class="box-head"><b>Serwer i liczba procesów MPI</b><span class="dim">FDS liczy jedną siatkę na jednym procesie; czas dyktuje najbardziej obciążony</span></div>
       <form method="post" action="{% url 'jobs:start' job.public_id %}" id="startform">{% csrf_token %}
-      <div class="variants">
+      <div class="table-wrap"><table>
+        <thead><tr><th style="width:20px"></th><th>Serwer</th><th class="num">vCPU</th><th class="num">Procesy</th><th>Obciążenie procesów</th><th class="num">Szac. czas</th><th class="num">Cena netto</th></tr></thead>
+        <tbody>
         {% for o in options %}
-        <label class="variant{% if o.procs == job.procs and o.server == job.server_type %} on{% endif %}">
-          <input type="radio" name="choice" value="{{ o.procs }}:{{ o.server }}" {% if o.procs == job.procs and o.server == job.server_type %}checked{% endif %} onchange="document.getElementById('procs').value='{{ o.procs }}';document.getElementById('server_type').value='{{ o.server }}';document.querySelectorAll('#startform .variant').forEach(function(r){r.classList.remove('on')});this.closest('.variant').classList.add('on')">
-          <span class="v-main">
-            <span class="v-title">{{ o.server }} <span class="muted">{{ o.vcpu }} vCPU</span>, {{ o.procs }} {% if o.procs == 1 %}proces{% elif o.procs < 5 %}procesy{% else %}procesów{% endif %} MPI
-              {% if o.procs == cheapest.procs and o.server == cheapest.server %}<span class="pill ok">najtaniej</span>{% endif %}
-              {% if o.procs == fastest.procs and o.server == fastest.server %}<span class="pill info">najszybciej</span>{% endif %}</span>
-            <span class="muted small">szacowany czas {{ o.hours|floatformat:1 }} h, najbardziej obciążony proces {{ o.load }} komórek</span>
-          </span>
-          <span class="v-price"><b>{{ o.pricePln|floatformat:0 }} zł</b><span class="muted small">netto</span></span>
-        </label>
+        <tr class="variant{% if o.procs == job.procs and o.server == job.server_type %} on{% endif %}" onclick="var r=this.querySelector('input');r.checked=true;r.dispatchEvent(new Event('change'))">
+          <td><input type="radio" name="choice" value="{{ o.procs }}:{{ o.server }}" aria-label="{{ o.server }}, {{ o.procs }} procesów" {% if o.procs == job.procs and o.server == job.server_type %}checked{% endif %} onchange="document.getElementById('procs').value='{{ o.procs }}';document.getElementById('server_type').value='{{ o.server }}';document.querySelectorAll('#startform .variant').forEach(function(r){r.classList.remove('on')});this.closest('.variant').classList.add('on')"></td>
+          <td><span class="mono" style="font-weight:500">{{ o.server }}</span>{% if o.procs == cheapest.procs and o.server == cheapest.server %}<span class="tag ok">najtaniej</span>{% endif %}{% if o.procs == fastest.procs and o.server == fastest.server %}<span class="tag info">najszybciej</span>{% endif %}</td>
+          <td class="num muted">{{ o.vcpu }}</td>
+          <td class="num">{{ o.procs }}</td>
+          <td><span class="muted small">maks. {{ o.load }} kom. na proces</span></td>
+          <td class="num">{{ o.hours|floatformat:1 }} h</td>
+          <td class="num" style="font-weight:500">{{ o.pricePln|floatformat:0 }} zł</td>
+        </tr>
         {% endfor %}
-      </div>
+        </tbody>
+      </table></div>
       <input type="hidden" id="procs" name="procs" value="{{ job.procs }}">
       <input type="hidden" id="server_type" name="server_type" value="{{ job.server_type }}">
-      {% if confidence.note %}<p class="muted small">{{ confidence.note }}</p>{% endif %}
-      <div class="actions"><button class="btn primary lg" type="submit" {% if has_errors %}disabled{% endif %}>Uruchom obliczenia</button>{% if has_errors %}<span class="muted small">Najpierw popraw błędy z listy obok i wgraj plik ponownie.</span>{% else %}<span class="muted small">Płatność po zakończeniu. Pierwsze 2 minuty to bieg testowy bez opłaty, jeśli FDS zatrzyma się na błędzie.</span>{% endif %}</div>
-      </form>
-      {% if tips %}<ul class="tips">{% for t in tips %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
-    </section>
-    <section>
-      <h2>Sprawdzenie pliku</h2>
-      <div class="tiles">
-        <div class="tile{% if issue_counts.error %} bad{% endif %}"><span class="k">Błędy</span><span class="v">{{ issue_counts.error }}</span><span class="s">zatrzymają FDS</span></div>
-        <div class="tile"><span class="k">Uwagi</span><span class="v">{{ issue_counts.warn }}</span><span class="s">warto sprawdzić</span></div>
-        <div class="tile"><span class="k">Informacje</span><span class="v">{{ issue_counts.info }}</span><span class="s">podpowiedzi</span></div>
+      <div class="box-foot">
+        <button class="btn accent lg" type="submit" {% if has_errors %}disabled{% endif %}><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>Uruchom obliczenia</button>
+        <span class="muted small" style="flex:1 1 260px">{% if has_errors %}Najpierw popraw błędy z listy obok i wgraj plik ponownie.{% else %}Płatność po zakończeniu, na fakturę. Pierwsze 2 minuty to bieg testowy: jeśli FDS zatrzyma się na błędzie, nie płacisz nic.{% endif %}{% if confidence.note %} {{ confidence.note }}{% endif %}</span>
       </div>
+      </form>
+      {% if tips %}<div class="box-body"><ul class="tips">{% for t in tips %}<li>{{ t }}</li>{% endfor %}</ul></div>{% endif %}
+    </section>
+    <section class="box" style="flex:2 1 380px;min-width:0">
+      <div class="box-head"><b>Sprawdzenie pliku</b><span class="cnt">{{ issues|length }}</span><span class="right">{% if issue_counts.error %}<span class="st" style="color:var(--bad-ink)"><i style="width:7px;height:7px;border-radius:50%;background:var(--bad)"></i>{{ issue_counts.error }} błędów</span>{% endif %}{% if issue_counts.warn %}<span class="st" style="color:var(--warn-ink)"><i style="width:7px;height:7px;border-radius:50%;background:var(--warn)"></i>{{ issue_counts.warn }} uwag</span>{% endif %}<span class="st"><i style="width:7px;height:7px;border-radius:50%;background:var(--line-strong)"></i>{{ issue_counts.info }} info</span></span></div>
       {% if issues %}
       <div class="issue-cards">
         {% for i in issues %}
         <div class="issue {{ i.level }}">
-          <div class="row"><span class="pill {% if i.level == 'error' %}error{% elif i.level == 'warn' %}warn{% else %}info{% endif %}">{% if i.level == 'error' %}błąd{% elif i.level == 'warn' %}uwaga{% else %}info{% endif %}</span>{% if i.line %}<span class="mono small muted">linia {{ i.line }}</span>{% endif %}<span class="mono small muted">{{ i.code }}</span></div>
-          <p>{{ i.msg }}</p>
-          {% if i.src %}<code class="src">{{ i.src }}</code>{% endif %}
-          {% if i.fix %}<p class="fix"><b>Jak poprawić:</b> {{ i.fix }}</p>{% endif %}
+          {% if i.level == 'info' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>{% else %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 16H3zM12 10v4M12 17v.01"/></svg>{% endif %}
+          <div class="body">
+            <div class="row"><b>{% if i.level == 'error' %}Błąd{% elif i.level == 'warn' %}Uwaga{% else %}Informacja{% endif %}</b>{% if i.line %}<span class="mono">linia {{ i.line }}</span>{% endif %}<span class="mono">{{ i.code }}</span></div>
+            <p>{{ i.msg }}</p>
+            {% if i.src %}<code class="src">{{ i.src }}</code>{% endif %}
+            {% if i.fix %}<p class="fix"><b>Jak poprawić:</b> {{ i.fix }}</p>{% endif %}
+          </div>
         </div>
         {% endfor %}
       </div>
-      {% else %}<div class="notice good">Nie znaleziono problemów. FDS powinien wystartować bez przeszkód.</div>{% endif %}
-      <div class="actions"><a class="btn" href="{% url 'jobs:new' %}{% if job.project %}?p={{ job.project.name|urlencode }}{% endif %}">Wgraj poprawiony plik</a><span class="muted small">Poprawiasz plik u siebie (PyroSim lub edytor) i wgrywasz jako nowe zlecenie.</span></div>
+      {% else %}<div class="box-body"><p class="muted">Nie znaleziono problemów. FDS powinien wystartować bez przeszkód.</p></div>{% endif %}
+      <div class="box-foot"><a class="btn" href="{% url 'jobs:new' %}{% if job.project %}?p={{ job.project.name|urlencode }}{% endif %}">Wgraj poprawiony plik</a><span class="muted small">Poprawiasz u siebie (PyroSim lub edytor) i wgrywasz jako nowe zlecenie.</span></div>
     </section>
   </div>
 </div>
@@ -117,13 +113,14 @@
 </nav>
 
 <div class="panel" id="panel-przebieg">
-  <section>
-    <h2>Zdarzenia</h2>
+  <section class="box">
+    <div class="box-head"><b>Zdarzenia</b><span class="cnt">{{ events|length }}</span></div>
     <ul class="timeline">
       {% for e in events %}
-      <li class="{% if 'fail' in e.kind or 'lost' in e.kind or e.kind == 'stalled' %}bad{% elif e.kind == 'finished' and job.status == 'done' %}good{% elif forloop.last and job.is_active %}now{% endif %}">
+      <li class="{% if 'fail' in e.kind or 'lost' in e.kind or e.kind == 'stalled' %}bad{% elif e.kind == 'finished' and job.status == 'done' or e.kind == 'test_passed' %}good{% elif e.kind == 'budget_notice' %}warn{% elif forloop.last and job.is_active %}now{% endif %}">
+        <svg class="sicon" viewBox="0 0 16 16" aria-hidden="true">{% if forloop.last and job.is_active %}<circle class="ring" cx="8" cy="8" r="6.5"/><path class="arc" d="M8 1.5a6.5 6.5 0 0 1 6.5 6.5"/>{% else %}<circle class="fill" cx="8" cy="8" r="6.5"/><path class="g" d="{% if 'fail' in e.kind or 'lost' in e.kind or e.kind == 'stalled' %}M5.5 5.5l5 5M10.5 5.5l-5 5{% elif e.kind == 'budget_notice' %}M8 4.5v4M8 11v.01{% elif e.kind == 'finished' or e.kind == 'agent_finish' or e.kind == 'test_passed' %}M5 8.2l2 2 4-4.4{% else %}M5 8h6{% endif %}"/>{% endif %}</svg>
+        <span class="what">{% if e.kind == 'uploaded' %}Plik wgrany{% elif e.kind == 'run_file' %}Siatki przypisane do procesów{% elif e.kind == 'start' %}Uruchomiono{% elif e.kind == 'machine_created' %}Maszyna utworzona{% elif e.kind == 'machine_deleted' %}Maszyna usunięta{% elif e.kind == 'agent_finish' or e.kind == 'finished' %}Zakończono{% elif e.kind == 'stop_requested' %}Poproszono o zatrzymanie{% elif e.kind == 'budget_notice' %}Prognoza przekracza wycenę{% elif e.kind == 'download' %}Pobrano plik{% elif e.kind == 'admin_view' %}Podgląd administratora{% elif e.kind == 'share_links' %}Wygenerowano linki do pobrania{% elif e.kind == 'archives' %}Archiwa wyników gotowe{% elif e.kind == 'calibration' %}Kalibracja wyceny{% else %}{{ e.kind }}{% endif %}{% if e.detail %} <span class="d">{{ e.detail }}</span>{% endif %}</span>
         <span class="t">{{ e.at|date:"d.m H:i:s" }}</span>
-        <span><span>{% if e.kind == 'uploaded' %}Plik wgrany{% elif e.kind == 'run_file' %}Siatki przypisane do procesów{% elif e.kind == 'start' %}Uruchomiono{% elif e.kind == 'machine_created' %}Maszyna utworzona{% elif e.kind == 'machine_deleted' %}Maszyna usunięta{% elif e.kind == 'agent_finish' or e.kind == 'finished' %}Zakończono{% elif e.kind == 'stop_requested' %}Poproszono o zatrzymanie{% elif e.kind == 'budget_notice' %}Prognoza przekracza wycenę{% elif e.kind == 'download' %}Pobrano plik{% elif e.kind == 'admin_view' %}Podgląd administratora{% elif e.kind == 'share_links' %}Wygenerowano linki do pobrania{% elif e.kind == 'archives' %}Archiwa wyników gotowe{% elif e.kind == 'calibration' %}Kalibracja wyceny{% else %}{{ e.kind }}{% endif %}</span>{% if e.detail %} <span class="d">{{ e.detail }}</span>{% endif %}</span>
       </li>
       {% endfor %}
     </ul>
@@ -131,36 +128,34 @@
 </div>
 
 <div class="panel" id="panel-konsola">
-  <div hx-get="{% url 'jobs:console' job.public_id %}" hx-trigger="load" hx-swap="outerHTML"><div class="console"><div class="console-bar"><span class="dot off"></span><span>ładuję konsolę…</span></div><pre></pre></div></div>
+  <div hx-get="{% url 'jobs:console' job.public_id %}" hx-trigger="load" hx-swap="outerHTML"><div class="console"><div class="console-bar"><span class="fn"><span class="dot off"></span>ładuję konsolę…</span></div><pre></pre></div></div>
 </div>
 
 <div class="panel" id="panel-wykresy">
   <section>
-    <h2>HRR i czujniki</h2>
-    <p class="muted small">Z plików CSV, które FDS zapisuje w trakcie. Odświeżane co 30 s, dopóki zlecenie się liczy.</p>
+    <div class="box-head" style="border:1px solid var(--line-strong);border-radius:var(--r-lg)"><b>HRR i czujniki</b><span class="dim">z plików CSV, które FDS zapisuje w trakcie · odświeżane co 30 s, dopóki zlecenie się liczy</span></div>
     <div id="charts" class="charts" data-url="{% url 'jobs:charts' job.public_id %}" data-active="{% if job.is_active %}1{% else %}0{% endif %}"></div>
   </section>
   <script src="{% static 'charts.js' %}" defer></script>
 </div>
 
 <div class="panel" id="panel-pliki">
-  <div id="files-panel" {% if job.is_active or archives_pending %}hx-get="{% url 'jobs:detail' job.public_id %}" hx-trigger="every 30s" hx-select="#files-panel" hx-swap="outerHTML"{% endif %}>
+  <div id="files-panel" {% if job.is_active or archives_pending %}hx-get="{% url 'jobs:detail' job.public_id %}" hx-trigger="every 30s" hx-select="#files-panel" hx-swap="outerHTML"{% endif %} style="display:grid;gap:16px">
   {% if job.is_active %}
-  <div class="live-box">
-    <div>
-      <h3>Pobieranie w trakcie obliczeń</h3>
-      <p class="muted small">Maszyna dosyła małe pliki (CSV, log) co minutę, a duże (przekroje, Smokeview) co 5 minut — tylko to, co przybyło. Pobierasz stan z chwili ostatniej wysyłki; obliczenia biegną dalej bez przerwy.</p>
-      <p class="mono small">{% if job.files_synced_at %}ostatnia wysyłka {{ job.files_synced_at|date:"H:i:s" }}{% else %}jeszcze nic nie przyszło{% endif %} · {{ files|length }} plików, {{ files_size|filesizeformat }}{% if job.sync_requested_at %} · <span style="color:var(--accent-ink)">czekam na maszynę…</span>{% endif %}</p>
+  <section class="box">
+    <div class="box-head"><b>Pobieranie w trakcie obliczeń</b><span class="dim">małe pliki (CSV, log) co minutę, duże (przekroje, Smokeview) co 5 minut</span></div>
+    <div class="box-foot live-box">
+      <div><span class="mono small">{% if job.files_synced_at %}ostatnia wysyłka {{ job.files_synced_at|date:"H:i:s" }}{% else %}jeszcze nic nie przyszło{% endif %} · {{ files|length }} plików, {{ files_size|filesizeformat }}{% if job.sync_requested_at %} · <span style="color:var(--accent-ink)">czekam na maszynę…</span>{% endif %}</span><span class="muted small">Pobierasz stan z chwili ostatniej wysyłki; obliczenia biegną dalej bez przerwy.</span></div>
+      <div class="actions">
+        <form method="post" action="{% url 'jobs:sync' job.public_id %}" class="inline">{% csrf_token %}<button class="btn" type="submit" {% if job.sync_requested_at %}disabled{% endif %}>Zsynchronizuj teraz</button></form>
+        <form method="post" action="{% url 'jobs:snapshot' job.public_id %}" class="inline">{% csrf_token %}<input type="hidden" name="key" value="csv"><button class="btn primary" type="submit" {% if archives_building or not files %}disabled{% endif %}>{% if archives_building %}Pakuję…{% else %}Spakuj CSV i logi{% endif %}</button></form>
+      </div>
     </div>
-    <div class="actions">
-      <form method="post" action="{% url 'jobs:sync' job.public_id %}" class="inline">{% csrf_token %}<button class="btn" type="submit" {% if job.sync_requested_at %}disabled{% endif %}>Zsynchronizuj teraz</button></form>
-      <form method="post" action="{% url 'jobs:snapshot' job.public_id %}" class="inline">{% csrf_token %}<input type="hidden" name="key" value="csv"><button class="btn primary" type="submit" {% if archives_building or not files %}disabled{% endif %}>{% if archives_building %}Pakuję…{% else %}Spakuj CSV i logi{% endif %}</button></form>
-    </div>
-  </div>
+  </section>
   {% endif %}
   {% if archives %}
-  <section>
-    <h2>Pobierz jednym plikiem{% if job.is_active %} <small class="muted">stan z chwili spakowania</small>{% endif %}</h2>
+  <section class="box">
+    <div class="box-head"><b>Pobierz jednym plikiem</b>{% if job.is_active %}<span class="dim">stan z chwili spakowania</span>{% endif %}<span class="right">archiwa bez kompresji · pobieranie obsługuje wznawianie (HTTP Range)</span></div>
     <div class="dl-cards">
       {% for a in archives %}
       <div class="dl-card{% if a.key == 'csv' %} key{% endif %}">
@@ -180,26 +175,23 @@
       {% endfor %}
     </div>
     {% if archives_ready %}
-    <div class="actions">
+    <div class="box-foot">
       <button class="btn" type="button" hx-get="{% url 'jobs:share' job.public_id %}" hx-target="#share-slot" hx-swap="innerHTML">Link na 7 dni / pobieranie wznawialne</button>
-      <span class="muted small">Archiwa są bez kompresji, pobieranie obsługuje wznawianie (HTTP Range).</span>
     </div>
     <div id="share-slot"></div>
     {% endif %}
   </section>
   {% endif %}
   {% if files %}
-  <div class="file-groups">
-    {% for g in file_groups %}
-    <section class="file-group">
-      <h3>{{ g.title }} <small>{{ g.files|length }} {% if g.files|length == 1 %}plik{% else %}plików{% endif %}, {{ g.size|filesizeformat }}</small></h3>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Plik</th><th>Opis</th><th class="num">Rozmiar</th><th>Zapisano</th><th></th></tr></thead>
-        <tbody>{% for f in g.files %}<tr><td><a class="mono" href="{% url 'download' job.public_id f.name %}">{{ f.name }}</a></td><td class="muted wrap">{{ f.desc }}</td><td class="num">{{ f.size|filesizeformat }}</td><td class="muted small nowrap">{{ f.mtime|date:"d.m.Y H:i" }}</td><td class="num"><a class="btn sm" href="{% url 'download' job.public_id f.name %}">Pobierz</a></td></tr>{% endfor %}</tbody>
-      </table></div>
-    </section>
-    {% endfor %}
-  </div>
+  {% for g in file_groups %}
+  <section class="box">
+    <div class="box-head"><b>{{ g.title }}</b><span class="cnt">{{ g.files|length }}</span><span class="dim">{{ g.size|filesizeformat }}</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Plik</th><th>Opis</th><th class="num">Rozmiar</th><th>Zapisano</th><th></th></tr></thead>
+      <tbody>{% for f in g.files %}<tr><td><a class="mono" href="{% url 'download' job.public_id f.name %}">{{ f.name }}</a></td><td class="muted wrap">{{ f.desc }}</td><td class="num">{{ f.size|filesizeformat }}</td><td class="muted small nowrap">{{ f.mtime|date:"d.m.Y H:i" }}</td><td class="num"><a class="btn sm icon" href="{% url 'download' job.public_id f.name %}" aria-label="Pobierz {{ f.name }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg></a></td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  {% endfor %}
   {% if job.expires_at %}<p class="muted small">Wyniki dostępne do {{ job.expires_at|date:"d.m.Y" }}; potem są trwale usuwane.</p>{% endif %}
   {% else %}
   <div class="empty"><h3>Jeszcze nie ma plików</h3><p>{% if job.is_active %}Małe pliki pojawiają się co minutę, duże po zakończeniu obliczeń.{% else %}To zlecenie nie zapisało żadnych plików.{% endif %}</p></div>
@@ -208,14 +200,14 @@
 </div>
 
 <div class="panel" id="panel-koszt">
-  <section>
-    <h2>Wycena i koszt</h2>
-    <div class="tiles">
-      <div class="tile"><span class="k">Szacunek przed startem</span><span class="v">{{ job.est_price_pln|floatformat:0 }}<small>zł</small></span><span class="s">{{ job.est_hours|floatformat:1 }} h na {{ job.server_type }}</span></div>
-      {% if job.is_active %}<div class="tile key"><span class="k">Prognoza w trakcie</span><span class="v">{{ job.projected_price_pln|floatformat:0 }}<small>zł</small></span><span class="s">{% if job.projected_hours %}{{ job.projected_hours|floatformat:1 }} h według tempa obliczeń{% else %}tempo jeszcze nieznane{% endif %}</span></div>{% endif %}
-      {% if job.price_pln %}<div class="tile key"><span class="k">Cena końcowa netto</span><span class="v">{{ job.price_pln|floatformat:0 }}<small>zł</small></span><span class="s">{{ job.wall_text }} obliczeń</span></div>{% endif %}
+  <section class="box" style="max-width:760px">
+    <div class="box-head"><b>Wycena i koszt</b></div>
+    <div class="cells">
+      <div class="cell"><span class="k">Szacunek przed startem</span><span class="v mono">{{ job.est_price_pln|floatformat:0 }} zł<small>{{ job.est_hours|floatformat:1 }} h na {{ job.server_type }}</small></span></div>
+      {% if job.is_active %}<div class="cell"><span class="k">Prognoza w trakcie</span><span class="v mono">{{ job.projected_price_pln|floatformat:0 }} zł<small{% if job.over_estimate %} class="warn"{% endif %}>{% if job.projected_hours %}{{ job.projected_hours|floatformat:1 }} h według tempa obliczeń{% else %}tempo jeszcze nieznane{% endif %}</small></span></div>{% endif %}
+      {% if job.price_pln %}<div class="cell"><span class="k">Cena końcowa netto</span><span class="v mono"><span class="grad-text">{{ job.price_pln|floatformat:0 }} zł</span><small>{{ job.wall_text }} obliczeń</small></span></div>{% endif %}
     </div>
-    <dl class="kv">
+    <dl class="kv box-body" style="border-top:1px solid var(--line)">
       <dt>Jak liczona</dt><dd>czas pracy serwera od utworzenia do usunięcia maszyny, razy stawka godzinowa dla {{ job.server_type }} i rodzaju konta</dd>
       <dt>Opłata minimalna</dt><dd>brak</dd>
       <dt>Płatność</dt><dd>po zakończeniu obliczeń, na podstawie faktury</dd>
@@ -227,26 +219,19 @@
 
 <div class="panel" id="panel-model">
   <div class="grid-2">
-    <section>
-      <h2>Siatki</h2>
+    <section class="box">
+      <div class="box-head"><b>Siatki</b><span class="cnt">{{ meshes|length }}</span><span class="right">{{ job.total_cells }} komórek · T_END {{ job.sim_time|floatformat:0 }} s · {{ job.procs }} proc. MPI{% if model.maxLoad %} · maks. {{ model.maxLoad }} kom. na proces{% endif %}</span></div>
       <div class="table-wrap"><table>
         <thead><tr><th>ID</th><th class="num">IJK</th><th class="num">Komórki</th><th class="num">Δx</th><th class="num">Proces</th></tr></thead>
         <tbody>{% for m in meshes %}<tr><td class="mono">{{ m.id|default:forloop.counter }}</td><td class="num">{{ m.ijk.0 }}×{{ m.ijk.1 }}×{{ m.ijk.2 }}</td><td class="num">{{ m.cells }}</td><td class="num">{{ m.dx|floatformat:3 }} m</td><td class="num">{% if m.mpi is not None %}{{ m.mpi }}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody>
       </table></div>
-      <dl class="kv">
-        <dt>Komórki</dt><dd class="mono">{{ job.total_cells }}</dd>
-        <dt>Czas symulacji</dt><dd class="mono">{{ job.sim_time|floatformat:0 }} s</dd>
-        <dt>Procesy MPI</dt><dd class="mono">{{ job.procs }}</dd>
-        {% if model.maxLoad %}<dt>Największe obciążenie procesu</dt><dd class="mono">{{ model.maxLoad }} komórek</dd>{% endif %}
-      </dl>
     </section>
     {% if job.status != 'draft' %}
-    <section>
-      <h2>Sprawdzenie pliku</h2>
+    <section class="box">
+      <div class="box-head"><b>Sprawdzenie pliku</b><span class="cnt">{{ issues|length }}</span><span class="right"><a href="{% url 'download' job.public_id job.filename %}">Pobierz plik wejściowy</a></span></div>
       {% if issues %}
-      <div class="issue-cards">{% for i in issues %}<div class="issue {{ i.level }}"><div class="row"><span class="pill {% if i.level == 'error' %}error{% elif i.level == 'warn' %}warn{% else %}info{% endif %}">{% if i.level == 'error' %}błąd{% elif i.level == 'warn' %}uwaga{% else %}info{% endif %}</span>{% if i.line %}<span class="mono small muted">linia {{ i.line }}</span>{% endif %}</div><p>{{ i.msg }}</p>{% if i.src %}<code class="src">{{ i.src }}</code>{% endif %}</div>{% endfor %}</div>
-      {% else %}<p class="muted">Nie znaleziono problemów.</p>{% endif %}
-      <p><a href="{% url 'download' job.public_id job.filename %}">Pobierz plik wejściowy</a></p>
+      <div class="issue-cards">{% for i in issues %}<div class="issue {{ i.level }}">{% if i.level == 'info' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>{% else %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 16H3zM12 10v4M12 17v.01"/></svg>{% endif %}<div class="body"><div class="row"><b>{% if i.level == 'error' %}Błąd{% elif i.level == 'warn' %}Uwaga{% else %}Informacja{% endif %}</b>{% if i.line %}<span class="mono">linia {{ i.line }}</span>{% endif %}</div><p>{{ i.msg }}</p>{% if i.src %}<code class="src">{{ i.src }}</code>{% endif %}</div></div>{% endfor %}</div>
+      {% else %}<div class="box-body"><p class="muted">Nie znaleziono problemów.</p></div>{% endif %}
     </section>
     {% endif %}
   </div>

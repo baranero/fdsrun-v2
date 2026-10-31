@@ -1,49 +1,62 @@
 {% extends "base.html" %}
 {% block title %}Faktury · fdsrun{% endblock %}
-{% block content %}
-<div class="page-head">
-  <div><h1>Faktury</h1><p class="sub">{% if prof %}{{ prof.get_mode_display }} · e-mail do faktur {{ prof.invoice_email }}{% else %}Uzupełnij dane do faktury przed pierwszym zleceniem.{% endif %}</p></div>
-  <a class="btn" href="{% url 'billing:profile' %}">Dane do faktury</a>
+{% block topbar %}
+<div class="topbar">
+  <span class="ttl">Faktury</span>
+  <span class="sub">{% if prof %}{{ prof.get_mode_display }} · {{ prof.invoice_email }}{% else %}Uzupełnij dane do faktury przed pierwszym zleceniem.{% endif %}</span>
+  <div class="right"><a class="btn" href="{% url 'billing:profile' %}">Dane do faktury</a></div>
 </div>
-
+{% endblock %}
+{% block content %}
 {% for i in overdue %}
 <div class="notice bad">Faktura {{ i.label }} jest po terminie ({{ i.due_date|date:"d.m.Y" }}) — nowe zlecenia są wstrzymane do jej opłacenia. Wyniki możesz pobierać. <a class="btn sm primary" href="{% url 'billing:pay' i.pk %}">Zapłać teraz</a></div>
 {% endfor %}
 
-<div class="tiles">
-  <div class="tile key"><span class="k">Do zapłaty</span><span class="v">{{ due|floatformat:2 }}<small>zł brutto</small></span><span class="s">{% if next_due %}najbliższy termin {{ next_due|date:"d.m.Y" }}{% else %}nic nie czeka na płatność{% endif %}</span></div>
-  <div class="tile"><span class="k">Jeszcze bez faktury</span><span class="v">{{ pending_net|floatformat:2 }}<small>zł netto</small></span><span class="s">{{ pending|length }} zakończonych zleceń</span></div>
-  <div class="tile"><span class="k">Nieopłacone razem</span><span class="v">{{ balance|floatformat:0 }}<small>zł netto</small></span><span class="s">{% if limit %}limit nowego konta {{ limit|floatformat:0 }} zł{% else %}bez limitu{% endif %}</span></div>
+<div class="cols">
+  <section class="box{% if due %} accent-top{% endif %}">
+    <div class="box-body">
+      <span class="muted small">{% if next_due %}Do zapłaty · termin {{ next_due|date:"d.m.Y" }}{% else %}Do zapłaty{% endif %}</span>
+      <span style="font-size:26px;font-weight:600;letter-spacing:-0.02em">{{ due|floatformat:2 }} <span class="muted" style="font-size:13px;font-weight:400">PLN brutto</span></span>
+      {% if due %}<div class="actions"><a class="btn primary" href="{% url 'billing:invoices' %}#wystawione">Zapłać online</a></div>{% else %}<span class="muted small">Nic nie czeka na płatność.</span>{% endif %}
+    </div>
+  </section>
+  <section class="box">
+    <div class="box-body">
+      <span class="muted small">Nieopłacone razem{% if limit %} · limit nowego konta{% endif %}</span>
+      <span style="font-size:26px;font-weight:600;letter-spacing:-0.02em">{{ balance|floatformat:0 }} <span class="muted" style="font-size:13px;font-weight:400">{% if limit %}/ {{ limit|floatformat:0 }} {% endif %}PLN netto</span></span>
+      {% if limit %}<div class="bar" style="height:6px"><span style="width:{% widthratio balance limit 100 %}%"></span></div><span class="muted small">Limit znika po pierwszej opłaconej fakturze. W tym {{ pending_net|floatformat:2 }} zł za {{ pending|length }} zleceń jeszcze bez faktury.</span>{% else %}<span class="muted small">Bez limitu. W tym {{ pending_net|floatformat:2 }} zł za {{ pending|length }} zleceń jeszcze bez faktury.</span>{% endif %}
+    </div>
+  </section>
 </div>
 
-<section>
-  <h2>Wystawione</h2>
+<section class="box" id="wystawione">
+  <div class="box-head"><b>Wystawione</b><span class="cnt">{{ invoices|length }}</span><span class="right">płatność online: karta, BLIK, Przelewy24 · albo przelew na konto z faktury, w tytule numer faktury</span></div>
   {% if invoices %}
   <div class="table-wrap"><table>
-    <thead><tr><th>Numer</th><th>Data</th><th>Za</th><th class="num">Netto</th><th class="num">VAT</th><th class="num">Brutto</th><th>Termin</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th class="num" style="width:130px">Kwota</th><th>Status</th><th>Numer</th><th>Za</th><th class="num">Netto</th><th class="num">VAT</th><th>Wystawiono</th><th>Termin</th><th></th></tr></thead>
     <tbody>{% for i in invoices %}
     <tr>
-      <td class="mono">{{ i.label }}</td>
-      <td class="nowrap">{{ i.issue_date|date:"d.m.Y"|default:"—" }}</td>
-      <td class="wrap small">{% if i.period %}miesiąc {{ i.period }}, {{ i.lines|length }} zleceń{% else %}{% for l in i.lines %}<a class="mono" href="{% url 'jobs:detail' l.job %}">{{ l.job }}</a>{% endfor %}{% endif %}</td>
-      <td class="num">{{ i.net_pln }}</td><td class="num">{{ i.vat_pln }}</td><td class="num"><b>{{ i.gross_pln }}</b></td>
-      <td class="nowrap">{{ i.due_date|date:"d.m.Y"|default:"—" }}</td>
-      <td>{% if i.status == 'paid' %}<span class="pill ok">Zapłacona</span>{% elif i.overdue %}<span class="pill error">Po terminie</span>{% elif i.status == 'issued' %}<span class="pill warn">Do zapłaty</span>{% else %}<span class="pill">W przygotowaniu</span>{% endif %}</td>
-      <td class="num nowrap">{% if i.status != 'draft' %}<a class="btn sm" href="{% url 'billing:pdf' i.pk %}">PDF</a>{% endif %} {% if i.status == 'issued' %}<a class="btn sm primary" href="{% url 'billing:pay' i.pk %}">Zapłać</a>{% endif %}</td>
+      <td class="num"><span class="amount">{{ i.gross_pln }} <span class="cur">PLN</span></span></td>
+      <td>{% if i.status == 'paid' %}<span class="pill ok">Zapłacona <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>{% elif i.overdue %}<span class="pill error">Po terminie</span>{% elif i.status == 'issued' %}<span class="pill warn">Do zapłaty <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 7v5l3 2"/></svg></span>{% else %}<span class="pill">W przygotowaniu</span>{% endif %}</td>
+      <td class="mono small">{{ i.label }}</td>
+      <td class="wrap small">{% if i.period %}miesiąc {{ i.period }}, {{ i.lines|length }} zleceń{% else %}{% for l in i.lines %}<a class="mono" href="{% url 'jobs:detail' l.job %}">{{ l.job }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</td>
+      <td class="num muted">{{ i.net_pln }}</td><td class="num muted">{{ i.vat_pln }}</td>
+      <td class="nowrap muted small">{{ i.issue_date|date:"d.m.Y"|default:"—" }}</td>
+      <td class="nowrap small {% if i.overdue %}c-bad{% elif i.status == 'issued' %}c-warn{% else %}muted{% endif %}">{{ i.due_date|date:"d.m.Y"|default:"—" }}</td>
+      <td class="num nowrap">{% if i.status == 'issued' %}<a class="btn sm primary" href="{% url 'billing:pay' i.pk %}">Zapłać</a> {% endif %}{% if i.status != 'draft' %}<a class="btn sm icon" href="{% url 'billing:pdf' i.pk %}" aria-label="Pobierz PDF" title="PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg></a>{% endif %}</td>
     </tr>{% endfor %}</tbody>
   </table></div>
-  <p class="muted small">Zapłać online (karta, BLIK, Przelewy24 i inne metody) albo przelewem na konto podane na fakturze, w tytule numer faktury.</p>
   {% else %}
-  <div class="empty"><h3>Nie masz jeszcze faktur</h3><p>Faktura przyjdzie e-mailem po zakończeniu obliczeń{% if prof.mode == 'monthly' %} — zbiorczo, 1. dnia następnego miesiąca{% endif %}.</p></div>
+  <div class="box-body"><div class="empty" style="border:0"><h3>Nie masz jeszcze faktur</h3><p>Faktura przyjdzie e-mailem po zakończeniu obliczeń{% if prof.mode == 'monthly' %} — zbiorczo, 1. dnia następnego miesiąca{% endif %}.</p></div></div>
   {% endif %}
 </section>
 
 {% if pending %}
-<section>
-  <h2>Zakończone, jeszcze bez faktury</h2>
+<section class="box">
+  <div class="box-head"><b>Zakończone, jeszcze bez faktury</b><span class="cnt">{{ pending|length }}</span><span class="right">faktura przyjdzie e-mailem po wystawieniu</span></div>
   <div class="table-wrap"><table>
-    <thead><tr><th>Zlecenie</th><th>Zakończono</th><th class="num">Czas obliczeń</th><th class="num">Cena netto</th></tr></thead>
-    <tbody>{% for j in pending %}<tr><td><a class="strong" href="{% url 'jobs:detail' j.public_id %}">{{ j.name }}</a> <span class="muted small mono">{{ j.public_id }}</span></td><td class="nowrap">{{ j.finished_at|date:"d.m.Y H:i" }}</td><td class="num">{{ j.wall_text }}</td><td class="num">{{ j.price_pln|floatformat:2 }} zł</td></tr>{% endfor %}</tbody>
+    <thead><tr><th class="num" style="width:130px">Kwota netto</th><th>Zlecenie</th><th>Zakończono</th><th class="num">Czas obliczeń</th></tr></thead>
+    <tbody>{% for j in pending %}<tr><td class="num"><span class="amount">{{ j.price_pln|floatformat:2 }} <span class="cur">PLN</span></span></td><td><a class="strong" href="{% url 'jobs:detail' j.public_id %}">{{ j.name }}</a> <span class="muted small mono">{{ j.public_id }}</span></td><td class="nowrap muted small">{{ j.finished_at|date:"d.m.Y H:i" }}</td><td class="num">{{ j.wall_text }}</td></tr>{% endfor %}</tbody>
   </table></div>
 </section>
 {% endif %}

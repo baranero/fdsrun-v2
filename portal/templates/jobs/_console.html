@@ -1,8 +1,7 @@
 <div id="console" class="console" {% if job.is_active %}hx-get="{% url 'jobs:console' job.public_id %}" hx-trigger="every 10s" hx-swap="outerHTML"{% endif %}>
   <div class="console-bar">
-    <span class="dot {% if job.is_active %}live{% elif job.status == 'done' %}{% else %}off{% endif %}"></span>
-    <span>{{ job.chid|default:job.name }}.out</span>
-    <span>{{ n_lines }} ostatnich linii</span>
+    <span class="fn"><span class="dot {% if job.is_active %}live{% elif job.status == 'done' %}{% else %}off{% endif %}"></span>{{ job.chid|default:job.name }}.out</span>
+    <span>{{ n_lines }} ostatnich linii{% if job.is_active %} · co 10 s{% endif %}</span>
     <div class="right">
       <label><input type="checkbox" id="onlyerr" hx-preserve onchange="document.getElementById('console').classList.toggle('filter-err', this.checked)"> tylko błędy i ostrzeżenia</label>
       <label><input type="checkbox" id="autoscroll" hx-preserve checked> przewijaj</label>

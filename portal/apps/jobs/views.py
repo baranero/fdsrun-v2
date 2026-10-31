@@ -89,8 +89,21 @@ def job_list(request):
     counts = {k: (v[1](mine) if v[1] else mine).count() for k, v in LIST_FILTERS.items()}
     total_price = jobs.aggregate(s=Sum("price_pln"))["s"] or 0
     page = Paginator(jobs.select_related("project"), 25).get_page(request.GET.get("page"))
+    # Grupy na liście (jak na pulpicie): w toku, nieuruchomione, zakończone, błędy i przerwane.
+    groups_def = [
+        ("running", "W toku", lambda j: j.is_active),
+        ("draft", "Nieuruchomione", lambda j: j.status == Job.Status.DRAFT),
+        ("done", "Zakończone", lambda j: j.status == Job.Status.DONE),
+        ("failed", "Błędy i przerwane", lambda j: True),
+    ]
+    groups, rest = [], list(page.object_list)
+    for icon, label, pred in groups_def:
+        rows = [j for j in rest if pred(j)]
+        rest = [j for j in rest if j not in rows]
+        if rows:
+            groups.append({"icon": icon, "label": label, "rows": rows})
     return render(request, "jobs/list.html", {
-        "jobs": page.object_list, "page": page, "flt": flt, "q": q, "proj": proj, "projects": projects,
+        "jobs": page.object_list, "groups": groups, "page": page, "flt": flt, "q": q, "proj": proj, "projects": projects,
         "filters": [(k, v[0], counts[k]) for k, v in LIST_FILTERS.items()],
         "no_project": mine.filter(project__isnull=True).count(),
         "shown": len(page.object_list), "matched": page.paginator.count, "total_price": total_price,

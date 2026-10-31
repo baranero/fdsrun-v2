@@ -1,25 +1,31 @@
 {% extends "base.html" %}
 {% block title %}Nowe zlecenie · fdsrun{% endblock %}
 {% block main_class %}narrow{% endblock %}
+{% block topbar %}
+<div class="topbar"><a class="crumb-a" href="{% url 'jobs:list' %}">Zlecenia</a><span class="sep">/</span><span class="ttl">Nowe zlecenie</span></div>
+{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Nowe zlecenie</h1><p class="sub">Wgraj plik .fds z PyroSim. Portal sprawdzi go i pokaże czas oraz cenę, zanim cokolwiek się uruchomi.</p></div></div>
-<form method="post" enctype="multipart/form-data" class="card" id="upload">{% csrf_token %}
+<form method="post" enctype="multipart/form-data" class="box" id="upload">{% csrf_token %}
+  <div class="box-body" style="gap:16px">
   <label for="id_file" class="drop" id="drop">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36"><path d="M12 16V4m0 0 4 4m-4-4-4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><path d="M12 16V4m0 0 4 4m-4-4-4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
     <span class="drop-main">Przeciągnij plik .fds tutaj albo kliknij, żeby wybrać</span>
     <span class="muted small" id="drop-name">Maksymalnie {{ max_mb }} MB. Plik zostaje tylko w Twoim koncie.</span>
     <input type="file" name="file" id="id_file" accept=".fds" required>
   </label>
   {% if form.file.errors %}<ul class="errorlist">{% for e in form.file.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-  <p><label for="id_project">Projekt (folder) <span class="muted">— opcjonalnie</span></label><input type="text" name="project" id="id_project" list="projects" value="{{ form.project.value|default:preset }}" placeholder="np. Biurowiec Grzybowa, klatka D" autocomplete="off"><datalist id="projects">{% for p in projects %}<option value="{{ p.name }}">{% endfor %}</datalist><span class="help">Wpisz nazwę istniejącego projektu albo nową — folder powstanie sam.</span></p>
-  <div class="actions"><button class="btn primary lg" type="submit" id="go">Przeanalizuj plik</button><span class="muted small">Analiza trwa kilka sekund. Nic się jeszcze nie uruchamia i nic nie kosztuje.</span></div>
+  <p style="margin:0"><label for="id_project">Projekt (folder) <span class="muted">— opcjonalnie</span></label><input type="text" name="project" id="id_project" list="projects" value="{{ form.project.value|default:preset }}" placeholder="np. Biurowiec Grzybowa, klatka D" autocomplete="off"><datalist id="projects">{% for p in projects %}<option value="{{ p.name }}">{% endfor %}</datalist><span class="help">Wpisz nazwę istniejącego projektu albo nową — folder powstanie sam.</span></p>
+  </div>
+  <div class="box-foot"><button class="btn primary lg" type="submit" id="go">Przeanalizuj plik</button><span class="muted small">Analiza trwa kilka sekund. Nic się jeszcze nie uruchamia i nic nie kosztuje.</span></div>
 </form>
 <style>
-.drop { display: grid; justify-items: center; gap: 8px; padding: 36px 20px; border: 2px dashed var(--line-strong); border-radius: var(--r-lg); background: var(--sunken); color: var(--ink-2); cursor: pointer; text-align: center; transition: border-color .12s, background .12s; }
+.drop { display: grid; justify-items: center; gap: 8px; padding: 40px 20px; border: 1px dashed var(--line-strong); border-radius: var(--r-lg); background: var(--sunken); color: var(--ink-2); cursor: pointer; text-align: center; transition: border-color .12s, background .12s; }
 .drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
 .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.drop-main { font-weight: 500; font-size: 15px; }
+.drop-main { font-weight: 500; font-size: 14px; }
 .drop.has .drop-main { color: var(--accent-ink); }
+.drop svg { color: var(--faint); }
 </style>
 <script>
 (function(){var d=document.getElementById('drop'),i=document.getElementById('id_file'),n=document.getElementById('drop-name'),m=d.querySelector('.drop-main');

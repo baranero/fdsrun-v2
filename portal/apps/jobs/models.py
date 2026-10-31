@@ -170,6 +170,19 @@ class Job(models.Model):
             return None
 
     @property
+    def issue_error_count(self):
+        return sum(1 for i in (self.analysis or {}).get("issues", []) if i.get("level") == "error")
+
+    @property
+    def issue_warn_count(self):
+        return sum(1 for i in (self.analysis or {}).get("issues", []) if i.get("level") == "warn")
+
+    @property
+    def over_estimate(self):
+        """Prognoza w trakcie przekracza wycenę o ponad 30% (decyzja D-8: tylko informacja)."""
+        return bool(self.is_active and self.projected_hours and self.est_hours and self.projected_hours > 1.3 * self.est_hours)
+
+    @property
     def wall_text(self):
         """Wall time as '1 h 58 min' / '12 min' / '45 s'."""
         s = int(self.wall_seconds or 0)
