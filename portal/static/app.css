@@ -1,3 +1,6 @@
+/* Geist (SIL OFL 1.1, static/fonts/OFL.txt), served from our own server: no requests to Google (GDPR). */
+@font-face { font-family: "Geist"; src: url("fonts/Geist-Variable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url("fonts/GeistMono-Variable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
 /* fdsrun — jeden arkusz, dwa motywy. Tokeny na :root, motyw przez [data-theme].
    Układ: lewy pasek (.side) + kolumna treści (.topbar + main). Listy zleceń: .list > .group-head + .row. */
 :root {

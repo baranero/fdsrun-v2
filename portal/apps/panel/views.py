@@ -40,7 +40,7 @@ def dashboard(request):
         "total": _money(finished),
         "by_month": [
             {**_money(finished.filter(finished_at__gte=m, finished_at__lt=m + timedelta(days=32)).filter(finished_at__month=m.month)), "month": m}
-            for m in finished.annotate(m=TruncMonth("finished_at")).values_list("m", flat=True).distinct().order_by("-m")[:12]
+            for m in finished.filter(finished_at__isnull=False).annotate(m=TruncMonth("finished_at")).values_list("m", flat=True).distinct().order_by("-m")[:12]
         ],
         "users": User.objects.count(),
         "users_month": User.objects.filter(date_joined__gte=month_start).count(),

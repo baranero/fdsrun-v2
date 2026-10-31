@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}fdsrun{% endblock %}</title>
 <script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="preload" href="{% static 'fonts/Geist-Variable.woff2' %}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{% static 'app.css' %}">
 <link rel="icon" type="image/svg+xml" href="{% static 'logo.svg' %}">
 <script src="{% static 'htmx.min.js' %}" defer></script>
